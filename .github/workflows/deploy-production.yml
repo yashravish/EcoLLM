@@ -1,0 +1,77 @@
+name: Deploy Production
+
+on:
+  push:
+    tags:
+      - "v*"
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false   # Never cancel in-flight production deploys
+
+jobs:
+  deploy:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    environment: production    # Requires manual approval gate in GitHub env settings
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+
+      - name: Login to ECR
+        id: ecr-login
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build & push API image
+        uses: docker/build-push-action@v5
+        with:
+          context: apps/api
+          push: true
+          tags: |
+            ${{ steps.ecr-login.outputs.registry }}/ecollm-api:${{ github.ref_name }}
+            ${{ steps.ecr-login.outputs.registry }}/ecollm-api:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build & push inference-gateway image
+        uses: docker/build-push-action@v5
+        with:
+          context: apps/inference-gateway
+          push: true
+          tags: |
+            ${{ steps.ecr-login.outputs.registry }}/ecollm-inference-gateway:${{ github.ref_name }}
+            ${{ steps.ecr-login.outputs.registry }}/ecollm-inference-gateway:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Run migrations
+        run: |
+          aws eks update-kubeconfig --name ecollm-prod --region us-east-1
+          kubectl run migrate --rm -i --restart=Never \
+            --image=${{ steps.ecr-login.outputs.registry }}/ecollm-api:${{ github.ref_name }} \
+            --namespace=ecollm-prod \
+            --env="DATABASE_URL=${{ secrets.PROD_DATABASE_URL }}" \
+            -- /api migrate up
+
+      - name: Deploy to Kubernetes (production)
+        run: |
+          helm upgrade --install ecollm-api ./infra/k8s/helm/api \
+            --namespace ecollm-prod \
+            --create-namespace \
+            --set image.tag=${{ github.ref_name }} \
+            --set env=production \
+            --set replicaCount=3 \
+            --wait --timeout 10m
+
+      - name: Smoke test production
+        run: |
+          API_URL="${{ secrets.PROD_API_URL }}"
+          STATUS=$(curl -sf "$API_URL/health" | jq -r .status)
+          [ "$STATUS" = "ok" ] || (echo "Production health check failed" && exit 1)
+          echo "Production deploy complete: ${{ github.ref_name }}"

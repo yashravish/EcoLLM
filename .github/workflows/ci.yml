@@ -1,0 +1,146 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint-go:
+    name: Go Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.22"
+          cache: true
+      - name: golangci-lint (api)
+        uses: golangci/golangci-lint-action@v4
+        with:
+          version: v1.57.2
+          working-directory: apps/api
+      - name: golangci-lint (inference-gateway)
+        uses: golangci/golangci-lint-action@v4
+        with:
+          version: v1.57.2
+          working-directory: apps/inference-gateway
+        continue-on-error: true
+      - name: golangci-lint (carbon-service)
+        uses: golangci/golangci-lint-action@v4
+        with:
+          version: v1.57.2
+          working-directory: apps/carbon-service
+        continue-on-error: true
+
+  test-go:
+    name: Go Unit Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.22"
+          cache: true
+      - name: Test API
+        working-directory: apps/api
+        run: go test -race -count=1 -short ./...
+      - name: Vet API
+        working-directory: apps/api
+        run: go vet ./...
+
+  test-integration:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: ecollm_test
+          POSTGRES_USER: ecollm_test
+          POSTGRES_PASSWORD: ecollm_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.22"
+          cache: true
+      - name: Run migrations
+        run: |
+          docker run --rm --network host \
+            -v "${{ github.workspace }}/db/migrations:/migrations:ro" \
+            migrate/migrate:v4.17.0 \
+            -path /migrations \
+            -database "postgres://ecollm_test:ecollm_test@localhost:5432/ecollm_test?sslmode=disable" \
+            up
+      - name: Integration tests
+        working-directory: apps/api
+        env:
+          DATABASE_URL: postgres://ecollm_test:ecollm_test@localhost:5432/ecollm_test?sslmode=disable
+          REDIS_URL: redis://localhost:6379
+          JWT_SECRET: ci-jwt-secret
+          GRID_REGION: US-EAST
+          ENABLE_CARBON_TRACKING: "true"
+          ENABLE_CACHE: "true"
+          ENABLE_FALLBACK: "true"
+          ENABLE_PROMPT_OPTIMIZATION: "false"
+        run: go test -race -count=1 -run Integration ./...
+
+  lint-web:
+    name: Web Lint + Type Check
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run type-check
+
+  build-images:
+    name: Build Docker Images
+    runs-on: ubuntu-latest
+    needs: [lint-go, test-go]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Build API image
+        uses: docker/build-push-action@v5
+        with:
+          context: apps/api
+          push: false
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - name: Build inference-gateway image
+        uses: docker/build-push-action@v5
+        with:
+          context: apps/inference-gateway
+          push: false
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+        continue-on-error: true

@@ -1,0 +1,426 @@
+openapi: "3.1.0"
+
+info:
+  title: EcoLLM API
+  version: "0.1.0"
+  description: |
+    Carbon-aware LLM inference platform.
+    All requests require a Bearer API key unless noted otherwise.
+  contact:
+    email: api@ecollm.io
+
+servers:
+  - url: https://api.ecollm.io
+    description: Production
+  - url: https://staging-api.ecollm.io
+    description: Staging
+  - url: http://localhost:8080
+    description: Local development
+
+security:
+  - bearerAuth: []
+
+paths:
+  /health:
+    get:
+      summary: Health check
+      operationId: healthCheck
+      security: []
+      responses:
+        "200":
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+
+  /auth/login:
+    post:
+      summary: Authenticate with email + password
+      operationId: login
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+      responses:
+        "200":
+          description: JWT and user info
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LoginResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /auth/logout:
+    post:
+      summary: Invalidate the current session
+      operationId: logout
+      responses:
+        "204":
+          description: Logged out
+
+  /auth/me:
+    get:
+      summary: Return the current user and org
+      operationId: getMe
+      responses:
+        "200":
+          description: Current user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserResponse"
+
+  /v1/chat/completions:
+    post:
+      summary: Create a chat completion (OpenAI-compatible)
+      operationId: createCompletion
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CompletionRequest"
+      responses:
+        "200":
+          description: Completion response with eco metadata
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CompletionResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+
+  /v1/route/preview:
+    post:
+      summary: Preview routing decision without running inference
+      operationId: previewRoute
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CompletionRequest"
+      responses:
+        "200":
+          description: Routing decision with scored candidates
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RoutePreviewResponse"
+
+  /v1/models:
+    get:
+      summary: List available models
+      operationId: listModels
+      responses:
+        "200":
+          description: Model list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ModelListResponse"
+
+  /v1/usage:
+    get:
+      summary: Get usage aggregates for the current org
+      operationId: getUsage
+      parameters:
+        - name: period
+          in: query
+          schema:
+            type: string
+            enum: [hourly, daily, monthly]
+            default: daily
+        - name: from
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: to
+          in: query
+          schema:
+            type: string
+            format: date-time
+      responses:
+        "200":
+          description: Usage aggregate list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UsageResponse"
+
+  /v1/billing:
+    get:
+      summary: Get billing events for the current org
+      operationId: getBilling
+      responses:
+        "200":
+          description: Billing event list
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: eco-sk-...
+
+  responses:
+    Unauthorized:
+      description: Missing or invalid API key
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/APIError"
+    BadRequest:
+      description: Validation error
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/APIError"
+    RateLimited:
+      description: Rate limit exceeded
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/APIError"
+    ServiceUnavailable:
+      description: All inference backends unavailable
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/APIError"
+
+  schemas:
+    HealthResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          example: ok
+        version:
+          type: string
+
+    APIError:
+      type: object
+      required: [code, message, type]
+      properties:
+        code:
+          type: integer
+        message:
+          type: string
+        type:
+          type: string
+        trace_id:
+          type: string
+
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+
+    LoginResponse:
+      type: object
+      properties:
+        token:
+          type: string
+        user:
+          $ref: "#/components/schemas/UserResponse"
+
+    UserResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+        name:
+          type: string
+        role:
+          type: string
+        org:
+          $ref: "#/components/schemas/OrgResponse"
+
+    OrgResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        slug:
+          type: string
+        plan:
+          type: string
+
+    CompletionRequest:
+      type: object
+      required: [messages]
+      properties:
+        messages:
+          type: array
+          items:
+            $ref: "#/components/schemas/ChatMessage"
+        model:
+          type: string
+          description: Optional model hint; overridden by routing engine
+        max_tokens:
+          type: integer
+          default: 1024
+        temperature:
+          type: number
+          default: 0.7
+        eco:
+          $ref: "#/components/schemas/EcoLLMOptions"
+
+    ChatMessage:
+      type: object
+      required: [role, content]
+      properties:
+        role:
+          type: string
+          enum: [system, user, assistant]
+        content:
+          type: string
+
+    EcoLLMOptions:
+      type: object
+      properties:
+        force_model:
+          type: string
+        min_quality:
+          type: number
+        max_energy_kwh:
+          type: number
+        max_cost_usd:
+          type: number
+
+    CompletionResponse:
+      type: object
+      properties:
+        id:
+          type: string
+        object:
+          type: string
+          example: chat.completion
+        model:
+          type: string
+        choices:
+          type: array
+          items:
+            $ref: "#/components/schemas/CompletionChoice"
+        usage:
+          $ref: "#/components/schemas/UsageInfo"
+        eco:
+          $ref: "#/components/schemas/EcoLLMMetadata"
+
+    CompletionChoice:
+      type: object
+      properties:
+        index:
+          type: integer
+        message:
+          $ref: "#/components/schemas/ChatMessage"
+        finish_reason:
+          type: string
+
+    UsageInfo:
+      type: object
+      properties:
+        prompt_tokens:
+          type: integer
+        completion_tokens:
+          type: integer
+        total_tokens:
+          type: integer
+
+    EcoLLMMetadata:
+      type: object
+      properties:
+        route:
+          type: object
+          properties:
+            selected_model:
+              type: string
+            task_type:
+              type: string
+            route_score:
+              type: number
+            used_fallback:
+              type: boolean
+        energy:
+          type: object
+          properties:
+            energy_kwh:
+              type: number
+            co2e_grams:
+              type: number
+            savings_vs_gpt4_percent:
+              type: number
+        cost:
+          type: object
+          properties:
+            cost_usd:
+              type: number
+
+    RoutePreviewResponse:
+      type: object
+      properties:
+        task_type:
+          type: string
+        recommended_model:
+          type: string
+        candidates:
+          type: array
+          items:
+            type: object
+            properties:
+              model:
+                type: string
+              score:
+                type: number
+              energy_kwh:
+                type: number
+              cost_usd:
+                type: number
+
+    ModelListResponse:
+      type: object
+      properties:
+        object:
+          type: string
+          example: list
+        data:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+              object:
+                type: string
+              owned_by:
+                type: string
+
+    UsageResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            type: object

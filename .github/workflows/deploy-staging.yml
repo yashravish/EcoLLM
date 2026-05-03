@@ -1,0 +1,61 @@
+name: Deploy Staging
+
+on:
+  push:
+    branches: [develop]
+
+concurrency:
+  group: deploy-staging
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    name: Deploy to Staging
+    runs-on: ubuntu-latest
+    environment: staging
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+
+      - name: Login to ECR
+        id: ecr-login
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build & push API image
+        uses: docker/build-push-action@v5
+        with:
+          context: apps/api
+          push: true
+          tags: ${{ steps.ecr-login.outputs.registry }}/ecollm-api:staging-${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build & push inference-gateway image
+        uses: docker/build-push-action@v5
+        with:
+          context: apps/inference-gateway
+          push: true
+          tags: ${{ steps.ecr-login.outputs.registry }}/ecollm-inference-gateway:staging-${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Deploy to Kubernetes (staging)
+        run: |
+          aws eks update-kubeconfig --name ecollm-staging --region us-east-1
+          helm upgrade --install ecollm-api ./infra/k8s/helm/api \
+            --namespace ecollm-staging \
+            --create-namespace \
+            --set image.tag=staging-${{ github.sha }} \
+            --set env=staging \
+            --wait --timeout 5m
+
+      - name: Run smoke tests
+        run: |
+          API_URL=$(kubectl get svc ecollm-api -n ecollm-staging -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
+          curl -sf "http://$API_URL/health" | jq .status

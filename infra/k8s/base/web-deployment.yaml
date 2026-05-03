@@ -1,0 +1,61 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ecollm-web
+  namespace: ecollm
+  labels:
+    app: ecollm-web
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: ecollm-web
+  template:
+    metadata:
+      labels:
+        app: ecollm-web
+    spec:
+      containers:
+        - name: web
+          image: ecollm/web:latest
+          ports:
+            - name: http
+              containerPort: 3000
+          env:
+            - name: NEXT_PUBLIC_API_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: ecollm-api-config
+                  key: NEXT_PUBLIC_API_URL
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "256Mi"
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 3000
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 3000
+            initialDelaySeconds: 20
+            periodSeconds: 20
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ecollm-web
+  namespace: ecollm
+spec:
+  selector:
+    app: ecollm-web
+  ports:
+    - name: http
+      port: 80
+      targetPort: 3000

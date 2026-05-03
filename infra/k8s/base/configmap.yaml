@@ -1,0 +1,20 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ecollm-api-config
+  namespace: ecollm
+data:
+  PORT: "8080"
+  LOG_LEVEL: "info"
+  GRID_REGION: "US-MIDA-PJM"
+  RATE_LIMIT_PER_MINUTE: "60"
+  REQUEST_TIMEOUT_MS: "30000"
+  ALLOWED_ORIGINS: "https://app.ecollm.io"
+  OTEL_ENDPOINT: "http://otel-collector:4317"
+  NEXT_PUBLIC_API_URL: "https://api.ecollm.io"
+  # Inference sidecar endpoints (set to actual service DNS names)
+  INFERENCE_PHI3_URL: "http://phi3-sidecar:8081"
+  INFERENCE_MISTRAL_URL: "http://mistral-sidecar:8082"
+  INFERENCE_LLAMA_13B_URL: "http://llama13b-sidecar:8083"
+  INFERENCE_LLAMA_70B_URL: "http://llama70b-sidecar:8084"
+  PHI3_SIDECAR_URL: "http://phi3-sidecar:8081"

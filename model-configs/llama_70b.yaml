@@ -1,0 +1,38 @@
+name: llama_70b
+display_name: "Llama 2 70B Chat"
+model_id: "meta-llama/Llama-2-70b-chat-hf"
+runtime: vllm
+quantization: awq
+max_context_len: 4096
+
+hardware:
+  gpu_type: "NVIDIA A100 80GB"
+  gpu_count: 2
+
+performance:
+  latency_p50_ms: 1800
+  latency_p95_ms: 4200
+  tokens_per_second: 8.0
+
+energy:
+  energy_per_token_kwh: 0.000004
+  idle_power_watts: 180
+  inference_power_watts: 250
+
+quality:
+  quality_benchmark: 0.93
+  quality_tasks:
+    simple: 0.93
+    medium: 0.93
+    hard: 0.92
+    specialized: 0.91
+
+cost:
+  cost_per_request_usd: 0.003
+
+routing:
+  task_types: [hard, specialized]
+  is_fallback_for: [llama_13b]
+
+status: active
+endpoint_url: "http://inference-gateway:8090/llama70b"

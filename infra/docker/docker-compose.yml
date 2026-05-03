@@ -1,0 +1,217 @@
+version: "3.9"
+
+# EcoLLM local development stack (CPU-only inference via Ollama)
+# For GPU inference, use docker-compose.gpu.yml overlay.
+# For isolated integration tests, use docker-compose.test.yml.
+
+services:
+  # ─── Infrastructure ────────────────────────────────────────────────────────
+
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ecollm
+      POSTGRES_USER: ecollm
+      POSTGRES_PASSWORD: ecollm_dev
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./../../db/migrations:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ecollm -d ecollm"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: redis-server --appendonly yes --maxmemory 512mb --maxmemory-policy allkeys-lru
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # ─── Observability ─────────────────────────────────────────────────────────
+
+  prometheus:
+    image: prom/prometheus:v2.51.0
+    restart: unless-stopped
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./../../infra/observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--storage.tsdb.retention.time=15d"
+      - "--web.enable-lifecycle"
+    depends_on:
+      - api
+
+  grafana:
+    image: grafana/grafana:10.3.0
+    restart: unless-stopped
+    ports:
+      - "3001:3000"
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /var/lib/grafana/dashboards/ecollm-overview.json
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./../../infra/observability/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - ./../../infra/observability/grafana/provisioning:/etc/grafana/provisioning:ro
+    depends_on:
+      - prometheus
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.97.0
+    restart: unless-stopped
+    ports:
+      - "4317:4317"   # OTLP gRPC
+      - "4318:4318"   # OTLP HTTP
+      - "8888:8888"   # Prometheus metrics
+    volumes:
+      - ./../../infra/observability/otel-collector.yml:/etc/otelcol-contrib/config.yaml:ro
+    depends_on:
+      - prometheus
+
+  # ─── Application services ──────────────────────────────────────────────────
+
+  api:
+    build:
+      context: ./../../apps/api
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+      - "9091:9091"   # Prometheus metrics
+    environment:
+      PORT: "8080"
+      DATABASE_URL: postgres://ecollm:ecollm_dev@postgres:5432/ecollm?sslmode=disable
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: dev-jwt-secret-change-in-production
+      LOG_LEVEL: debug
+      GRID_REGION: US-EAST
+      ENABLE_CARBON_TRACKING: "true"
+      ENABLE_CACHE: "true"
+      ENABLE_FALLBACK: "true"
+      ENABLE_PROMPT_OPTIMIZATION: "false"
+      PHI3_SIDECAR_URL: http://prompt-optimizer:8000
+      INFERENCE_PHI3_URL: http://inference-gateway:8090/phi3
+      INFERENCE_MISTRAL_URL: http://inference-gateway:8090/mistral
+      INFERENCE_LLAMA13B_URL: http://inference-gateway:8090/llama13b
+      INFERENCE_LLAMA70B_URL: http://inference-gateway:8090/llama70b
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  inference-gateway:
+    build:
+      context: ./../../apps/inference-gateway
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - "8090:8090"
+    environment:
+      PORT: "8090"
+      OLLAMA_BASE_URL: http://ollama:11434
+      LOG_LEVEL: debug
+    depends_on:
+      - ollama
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8090/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  carbon-service:
+    build:
+      context: ./../../apps/carbon-service
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - "8091:8091"
+    environment:
+      PORT: "8091"
+      REDIS_URL: redis://redis:6379
+      ELECTRICITY_MAPS_API_KEY: ""  # Optional; falls back to static regional averages
+      LOG_LEVEL: debug
+    depends_on:
+      redis:
+        condition: service_healthy
+
+  prompt-optimizer:
+    build:
+      context: ./../../apps/prompt-optimizer
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      PORT: "8000"
+      OLLAMA_BASE_URL: http://ollama:11434
+      LOG_LEVEL: info
+    depends_on:
+      - ollama
+
+  # ─── LLM runtime (CPU/dev) ─────────────────────────────────────────────────
+
+  ollama:
+    image: ollama/ollama:0.1.40
+    restart: unless-stopped
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_models:/root/.ollama
+    # Pull phi3:mini on first start (smallest model, ~2.3GB)
+    # Run: docker compose exec ollama ollama pull phi3:mini
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:11434/api/tags"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+
+  # ─── Frontend ──────────────────────────────────────────────────────────────
+
+  web:
+    build:
+      context: ./../../apps/web
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: http://localhost:8080
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:8080
+    depends_on:
+      - api
+
+volumes:
+  postgres_data:
+  redis_data:
+  prometheus_data:
+  grafana_data:
+  ollama_models:
+
+networks:
+  default:
+    name: ecollm_dev

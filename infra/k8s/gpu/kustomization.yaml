@@ -1,0 +1,11 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: ecollm
+
+resources:
+  - ../base
+  - vllm-phi3.yaml
+  - vllm-mistral7b.yaml
+  - vllm-llama13b.yaml
+  - vllm-llama70b.yaml

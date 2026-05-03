@@ -1,0 +1,38 @@
+name: phi_3
+display_name: "Phi-3 Mini 4K Instruct"
+model_id: "microsoft/Phi-3-mini-4k-instruct"
+runtime: ollama          # vllm in GPU mode
+quantization: gguf
+max_context_len: 4096
+
+hardware:
+  gpu_type: "NVIDIA A10G"
+  gpu_count: 1
+
+performance:
+  latency_p50_ms: 180
+  latency_p95_ms: 350
+  tokens_per_second: 55.0
+
+energy:
+  energy_per_token_kwh: 0.0000002
+  idle_power_watts: 20
+  inference_power_watts: 35
+
+quality:
+  quality_benchmark: 0.72
+  quality_tasks:
+    simple: 0.80
+    medium: 0.65
+    hard: 0.45
+    specialized: 0.30
+
+cost:
+  cost_per_request_usd: 0.0001
+
+routing:
+  task_types: [simple]
+  is_fallback_for: []
+
+status: active
+endpoint_url: "http://inference-gateway:8090/phi3"

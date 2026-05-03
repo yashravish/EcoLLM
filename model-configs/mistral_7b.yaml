@@ -1,0 +1,38 @@
+name: mistral_7b
+display_name: "Mistral 7B Instruct v0.2"
+model_id: "mistralai/Mistral-7B-Instruct-v0.2"
+runtime: vllm
+quantization: awq
+max_context_len: 8192
+
+hardware:
+  gpu_type: "NVIDIA A10G"
+  gpu_count: 1
+
+performance:
+  latency_p50_ms: 350
+  latency_p95_ms: 700
+  tokens_per_second: 38.0
+
+energy:
+  energy_per_token_kwh: 0.0000004
+  idle_power_watts: 30
+  inference_power_watts: 45
+
+quality:
+  quality_benchmark: 0.81
+  quality_tasks:
+    simple: 0.85
+    medium: 0.82
+    hard: 0.62
+    specialized: 0.50
+
+cost:
+  cost_per_request_usd: 0.0003
+
+routing:
+  task_types: [simple, medium]
+  is_fallback_for: [phi_3]
+
+status: active
+endpoint_url: "http://inference-gateway:8090/mistral"

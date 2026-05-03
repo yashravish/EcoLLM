@@ -1,0 +1,36 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx playwright *)",
+      "Bash(echo \"exit: $?\")",
+      "Bash(npm install *)",
+      "Bash(npm init *)",
+      "Bash(docker info *)",
+      "Read(//c/Users/yashr/AppData/Local/Temp/claude/c--Users-yashr-Desktop-EcoLLM/cd534cfc-9d54-45b9-a8c7-80eb5354bec0/tasks/**)",
+      "Bash(go mod *)",
+      "Bash(go test *)",
+      "Bash(docker --version)",
+      "Bash(docker compose *)",
+      "Bash(docker-compose --version)",
+      "Bash(echo \"EXIT: $?\")",
+      "Bash(docker version *)",
+      "Bash(cmd /c \"docker version 2>&1\")",
+      "PowerShell(docker version 2>&1)",
+      "Bash(pg_isready -h localhost -p 5432)",
+      "Bash(echo \"pg exit: $?\")",
+      "Bash(redis-cli -h localhost -p 6379 ping)",
+      "Bash(echo \"redis exit: $?\")",
+      "PowerShell(Get-Process -Name \"Docker Desktop\" -ErrorAction SilentlyContinue)",
+      "PowerShell(Get-Process -Name \"dockerd\" -ErrorAction SilentlyContinue)",
+      "PowerShell(Get-Service -Name \"docker\" -ErrorAction SilentlyContinue)",
+      "Bash(npm run *)",
+      "Bash(gh auth *)",
+      "Bash(git init *)",
+      "Bash(git add *)"
+    ],
+    "additionalDirectories": [
+      "c:\\Users\\yashr\\.claude\\projects\\c--Users-yashr-Desktop-EcoLLM\\memory",
+      "c:\\Users\\yashr\\Desktop\\EcoLLM\\apps\\api\\internal\\router"
+    ]
+  }
+}

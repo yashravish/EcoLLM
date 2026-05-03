@@ -1,0 +1,118 @@
+{
+  "title": "EcoLLM Overview",
+  "uid": "ecollm-overview",
+  "schemaVersion": 38,
+  "version": 1,
+  "refresh": "30s",
+  "time": { "from": "now-1h", "to": "now" },
+  "panels": [
+    {
+      "id": 1,
+      "title": "Request Rate (req/s)",
+      "type": "timeseries",
+      "gridPos": { "x": 0, "y": 0, "w": 8, "h": 6 },
+      "targets": [
+        {
+          "expr": "sum(rate(ecollm_requests_total[1m]))",
+          "legendFormat": "requests/s"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "P95 Latency (ms)",
+      "type": "timeseries",
+      "gridPos": { "x": 8, "y": 0, "w": 8, "h": 6 },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(ecollm_request_latency_milliseconds_bucket[5m])) by (le, model))",
+          "legendFormat": "p95 {{model}}"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "Energy per Request (kWh)",
+      "type": "timeseries",
+      "gridPos": { "x": 16, "y": 0, "w": 8, "h": 6 },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.50, sum(rate(ecollm_energy_per_request_kwh_bucket[5m])) by (le, model))",
+          "legendFormat": "median {{model}}"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "CO2e per Request (g)",
+      "type": "timeseries",
+      "gridPos": { "x": 0, "y": 6, "w": 8, "h": 6 },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.50, sum(rate(ecollm_co2e_per_request_grams_bucket[5m])) by (le))",
+          "legendFormat": "median CO2e"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "title": "Error Rate (%)",
+      "type": "timeseries",
+      "gridPos": { "x": 8, "y": 6, "w": 8, "h": 6 },
+      "targets": [
+        {
+          "expr": "100 * sum(rate(ecollm_requests_total{status='error'}[1m])) / sum(rate(ecollm_requests_total[1m]))",
+          "legendFormat": "error %"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "title": "Cache Hit Rate (%)",
+      "type": "timeseries",
+      "gridPos": { "x": 16, "y": 6, "w": 8, "h": 6 },
+      "targets": [
+        {
+          "expr": "100 * rate(ecollm_cache_hits_total[5m]) / (rate(ecollm_cache_hits_total[5m]) + rate(ecollm_cache_misses_total[5m]))",
+          "legendFormat": "cache hit %"
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "title": "Routing Score Distribution",
+      "type": "histogram",
+      "gridPos": { "x": 0, "y": 12, "w": 12, "h": 6 },
+      "targets": [
+        {
+          "expr": "ecollm_routing_score_bucket",
+          "legendFormat": "{{le}}"
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "title": "Fallbacks Used (total)",
+      "type": "stat",
+      "gridPos": { "x": 12, "y": 12, "w": 6, "h": 6 },
+      "targets": [
+        {
+          "expr": "sum(ecollm_fallbacks_used_total)",
+          "legendFormat": "fallbacks"
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "title": "Model Health",
+      "type": "table",
+      "gridPos": { "x": 18, "y": 12, "w": 6, "h": 6 },
+      "targets": [
+        {
+          "expr": "ecollm_model_health_status",
+          "legendFormat": "{{model}}"
+        }
+      ]
+    }
+  ]
+}

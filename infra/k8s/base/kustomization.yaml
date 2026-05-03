@@ -1,0 +1,17 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: ecollm
+
+resources:
+  - namespace.yaml
+  - configmap.yaml
+  - secrets.yaml
+  - postgres.yaml
+  - redis.yaml
+  - api-deployment.yaml
+  - inference-gateway.yaml
+  - carbon-service.yaml
+  - web-deployment.yaml
+  - ingress.yaml
+  - hpa.yaml

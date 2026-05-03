@@ -1,0 +1,136 @@
+version: "3.9"
+
+# GPU overlay for docker-compose.yml.
+# Usage: docker compose -f docker-compose.yml -f docker-compose.gpu.yml up
+# Requires: NVIDIA Container Toolkit installed on host.
+
+services:
+  # Replace Ollama with vLLM instances per model tier
+
+  inference-gateway:
+    environment:
+      PHI3_VLLM_URL: http://vllm-phi3:8000
+      MISTRAL_VLLM_URL: http://vllm-mistral:8000
+      LLAMA13B_VLLM_URL: http://vllm-llama13b:8000
+      LLAMA70B_VLLM_URL: http://vllm-llama70b:8000
+
+  vllm-phi3:
+    image: vllm/vllm-openai:v0.4.1
+    restart: unless-stopped
+    ports:
+      - "8100:8000"
+    command:
+      - "--model"
+      - "microsoft/Phi-3-mini-4k-instruct"
+      - "--quantization"
+      - "awq"
+      - "--max-model-len"
+      - "4096"
+      - "--gpu-memory-utilization"
+      - "0.4"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    volumes:
+      - hf_cache:/root/.cache/huggingface
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  vllm-mistral:
+    image: vllm/vllm-openai:v0.4.1
+    restart: unless-stopped
+    ports:
+      - "8101:8000"
+    command:
+      - "--model"
+      - "mistralai/Mistral-7B-Instruct-v0.2"
+      - "--quantization"
+      - "awq"
+      - "--max-model-len"
+      - "8192"
+      - "--gpu-memory-utilization"
+      - "0.5"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    volumes:
+      - hf_cache:/root/.cache/huggingface
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  vllm-llama13b:
+    image: vllm/vllm-openai:v0.4.1
+    restart: unless-stopped
+    ports:
+      - "8102:8000"
+    command:
+      - "--model"
+      - "meta-llama/Llama-2-13b-chat-hf"
+      - "--quantization"
+      - "gptq"
+      - "--max-model-len"
+      - "4096"
+      - "--gpu-memory-utilization"
+      - "0.8"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    volumes:
+      - hf_cache:/root/.cache/huggingface
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  vllm-llama70b:
+    image: vllm/vllm-openai:v0.4.1
+    restart: unless-stopped
+    ports:
+      - "8103:8000"
+    command:
+      - "--model"
+      - "meta-llama/Llama-2-70b-chat-hf"
+      - "--quantization"
+      - "awq"
+      - "--max-model-len"
+      - "4096"
+      - "--tensor-parallel-size"
+      - "2"
+      - "--gpu-memory-utilization"
+      - "0.9"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 2
+              capabilities: [gpu]
+    volumes:
+      - hf_cache:/root/.cache/huggingface
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 60s
+      timeout: 15s
+      retries: 5
+
+volumes:
+  hf_cache:
