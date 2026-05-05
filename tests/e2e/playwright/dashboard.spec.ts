@@ -9,8 +9,15 @@ async function login(page: Page) {
   await page.goto(`${BASE}/login`);
   await page.getByLabel(/email/i).fill(EMAIL);
   await page.getByLabel(/password/i).fill(PASSWORD);
-  await page.getByRole('button', { name: /sign in/i }).click();
-  await page.waitForURL(/\/overview/, { timeout: 10000 });
+  // Wait for both the login response and the dashboard /me hydration before
+  // asserting the URL, to prevent the layout's 401 redirect from winning
+  // the race in Firefox under parallel-test load.
+  await Promise.all([
+    page.waitForResponse(r => r.url().includes('/auth/login') && r.request().method() === 'POST'),
+    page.waitForResponse(r => r.url().includes('/me') && r.request().method() === 'GET', { timeout: 15_000 }),
+    page.getByRole('button', { name: /sign in/i }).click(),
+  ]);
+  await expect(page).toHaveURL(/\/overview/, { timeout: 5_000 });
 }
 
 test.describe('Dashboard', () => {

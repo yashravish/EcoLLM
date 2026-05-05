@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/ecollm/api/internal/admin"
+	"github.com/joho/godotenv"
 	"github.com/ecollm/api/internal/audit"
 	"github.com/ecollm/api/internal/auth"
 	"github.com/ecollm/api/internal/billing"
@@ -55,7 +56,22 @@ func (a *usageBillingAdapter) ListOrgsWithUsage(ctx context.Context, day time.Ti
 	return a.repo.ListOrgsWithUsage(ctx, day)
 }
 
+// carbonGridAdapter wraps *carbon.Estimator to satisfy router.GridReader.
+// The selector calls GridCarbonIntensity() once per routing decision so it can
+// score models on actual gCO2 per request rather than a fixed US-average default.
+type carbonGridAdapter struct{ est *carbon.Estimator }
+
+func (a *carbonGridAdapter) GridCarbonIntensity() float64 {
+	intensity, _ := a.est.GridIntensity()
+	return intensity
+}
+
 func main() {
+	// Load .env from project root (../../.env when run from apps/api/) or CWD.
+	if err := godotenv.Load("../../.env"); err != nil {
+		_ = godotenv.Load(".env")
+	}
+
 	// ── Config ──────────────────────────────────────────────────────────────
 	cfg, err := config.Load()
 	if err != nil {
@@ -103,13 +119,21 @@ func main() {
 	promptOptimizer := prompt.NewOptimizer(cfg.Phi3SidecarURL)
 	taskClassifier := router.NewClassifier()
 	modelScorer := router.NewScorer(pgPool)
-	modelSelector := router.NewSelector(modelScorer)
+	modelSelector := router.NewSelector(modelScorer).
+		WithDB(pgPool).
+		WithGridReader(&carbonGridAdapter{est: carbonEstimator})
 
 	inferenceGateway := inference.NewGateway(inference.InferenceEndpoints{
 		Phi3URL:     cfg.InferencePhi3URL,
 		MistralURL:  cfg.InferenceMistralURL,
 		Llama13BURL: cfg.InferenceLlama13BURL,
 		Llama70BURL: cfg.InferenceLlama70BURL,
+
+		APIKey:                cfg.InferenceAPIKey,
+		Phi3ExternalModel:     cfg.InferencePhi3Model,
+		MistralExternalModel:  cfg.InferenceMistralModel,
+		Llama13BExternalModel: cfg.InferenceLlama13BModel,
+		Llama70BExternalModel: cfg.InferenceLlama70BModel,
 	}, cfg.RequestTimeout)
 
 	energyRepo := carbon.NewEnergyRepository(pgPool)
@@ -140,6 +164,7 @@ func main() {
 
 	// ── Handlers ─────────────────────────────────────────────────────────────
 	authHandler := auth.NewHandler(authService).WithAudit(auditRepo)
+	oauthHandler := auth.NewOAuthHandler(authService, redisClient, cfg)
 	chatHandler := chat.NewHandler(chatService)
 	usageHandler := usage.NewHandler(usageService)
 	feedbackHandler := usage.NewFeedbackHandler(feedbackRepo)
@@ -196,7 +221,7 @@ func main() {
 
 	// ── Public Inference API (/v1) ────────────────────────────────────────────
 	api := app.Group("/v1",
-		middleware.Auth(authService),
+		middleware.Auth(authService, cfg.JWTSecret, redisClient),
 		middleware.RateLimit(redisClient, cfg.RateLimitPerMinute, time.Minute),
 	)
 	api.Post("/chat/completions", chatHandler.CreateCompletion)
@@ -225,6 +250,13 @@ func main() {
 	authGroup.Post("/login", authHandler.Login)
 	authGroup.Post("/logout", middleware.JWTAuth(cfg.JWTSecret, redisClient), authHandler.Logout)
 	authGroup.Get("/me", middleware.JWTAuth(cfg.JWTSecret, redisClient), authHandler.Me)
+	// OAuth — no JWT middleware; the callback issues the JWT itself.
+	authGroup.Get("/github/begin", oauthHandler.BeginGitHub)
+	authGroup.Get("/github/callback", oauthHandler.CallbackGitHub)
+	authGroup.Get("/google/begin", oauthHandler.BeginGoogle)
+	authGroup.Get("/google/callback", oauthHandler.CallbackGoogle)
+	// Org onboarding for OAuth users with no org yet.
+	authGroup.Post("/register/org", middleware.JWTAuth(cfg.JWTSecret, redisClient), authHandler.RegisterOrg)
 
 	// ── Organization Routes ───────────────────────────────────────────────────
 	orgGroup := app.Group("/organizations",
@@ -254,6 +286,10 @@ func main() {
 	workerCtx, cancelWorkers := context.WithCancel(context.Background())
 	go usage.StartAggregationWorker(workerCtx, usageRepo, time.Hour)
 	go billing.StartBillingWorker(workerCtx, billingRepo, &usageBillingAdapter{repo: usageRepo}, 24*time.Hour)
+	// Feedback learning loop: aggregates feedback_events → model_quality_scores weekly.
+	go router.StartLearningWorker(workerCtx, pgPool, 7*24*time.Hour)
+	// Reload learned quality scores into the selector every hour.
+	modelSelector.StartScoreRefresh(workerCtx, time.Hour)
 
 	// ── Prometheus Metrics Endpoint (separate port) ───────────────────────────
 	go func() {

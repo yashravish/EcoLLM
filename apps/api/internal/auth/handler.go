@@ -1,10 +1,17 @@
 package auth
 
 import (
+	"strings"
+
 	"github.com/ecollm/api/internal/audit"
 	"github.com/ecollm/api/pkg/apierror"
 	"github.com/gofiber/fiber/v2"
 	"github.com/jackc/pgx/v5"
+)
+
+const (
+	maxEmailLen    = 254  // RFC 5321 maximum email address length
+	maxPasswordLen = 1000 // well above bcrypt's 72-byte effective limit; prevents abuse
 )
 
 // Handler exposes auth and org-management HTTP endpoints.
@@ -56,6 +63,12 @@ func (h *Handler) Login(c *fiber.Ctx) error {
 	}
 	if req.Email == "" || req.Password == "" {
 		return c.Status(fiber.StatusBadRequest).JSON(apierror.Validation("email/password", "required"))
+	}
+	if len(req.Email) > maxEmailLen || !strings.Contains(req.Email, "@") {
+		return c.Status(fiber.StatusBadRequest).JSON(apierror.Validation("email", "invalid"))
+	}
+	if len(req.Password) > maxPasswordLen {
+		return c.Status(fiber.StatusBadRequest).JSON(apierror.Validation("password", "too long"))
 	}
 
 	token, user, org, err := h.svc.Login(c.UserContext(), req.Email, req.Password)
@@ -115,32 +128,37 @@ func (h *Handler) Logout(c *fiber.Ctx) error {
 }
 
 // Me handles GET /auth/me and GET /me.
+// OAuth users who haven't completed onboarding have org_id="" in their JWT;
+// in that case the response omits the "org" key rather than returning 401.
 func (h *Handler) Me(c *fiber.Ctx) error {
-	orgID, _ := c.Locals("org_id").(string)
 	userID, _ := c.Locals("user_id").(string)
-	if orgID == "" || userID == "" {
+	if userID == "" {
 		return c.Status(fiber.StatusUnauthorized).JSON(apierror.ErrUnauthorized)
 	}
+	orgID, _ := c.Locals("org_id").(string)
 
 	result, err := h.svc.GetMe(c.UserContext(), userID, orgID)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(apierror.ErrInternal)
 	}
 
-	return c.JSON(fiber.Map{
+	resp := fiber.Map{
 		"user": userResponse{
 			ID:    result.User.ID.String(),
 			Email: result.User.Email,
 			Name:  result.User.Name,
 			Role:  result.User.Role,
 		},
-		"org": orgResponse{
+	}
+	if result.Org != nil {
+		resp["org"] = orgResponse{
 			ID:   result.Org.ID.String(),
 			Name: result.Org.Name,
 			Slug: result.Org.Slug,
 			Plan: result.Org.Plan,
-		},
-	})
+		}
+	}
+	return c.JSON(resp)
 }
 
 // Register handles POST /auth/register.
@@ -185,6 +203,39 @@ func (h *Handler) Register(c *fiber.Ctx) error {
 			Name: resp.Org.Name,
 			Slug: resp.Org.Slug,
 			Plan: resp.Org.Plan,
+		},
+	})
+}
+
+// RegisterOrg handles POST /auth/register/org.
+// Called by org-less OAuth users after they provide an organisation name.
+func (h *Handler) RegisterOrg(c *fiber.Ctx) error {
+	userID, _ := c.Locals("user_id").(string)
+	if userID == "" {
+		return c.Status(fiber.StatusUnauthorized).JSON(apierror.ErrUnauthorized)
+	}
+
+	var req struct {
+		OrgName string `json:"org_name"`
+	}
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(apierror.ErrInvalidRequest)
+	}
+	if req.OrgName == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(apierror.Validation("org_name", "required"))
+	}
+
+	org, err := h.svc.RegisterOrg(c.UserContext(), userID, req.OrgName)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(apierror.ErrInternal)
+	}
+
+	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
+		"org": orgResponse{
+			ID:   org.ID.String(),
+			Name: org.Name,
+			Slug: org.Slug,
+			Plan: org.Plan,
 		},
 	})
 }

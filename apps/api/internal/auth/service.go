@@ -30,12 +30,12 @@ type authCacheEntry struct {
 
 // Service handles authentication business logic.
 type Service struct {
-	repo      *Repository
+	repo      RepositoryI
 	redis     *redis.Client
 	jwtSecret []byte
 }
 
-func NewService(repo *Repository, redisClient *redis.Client, jwtSecret string) *Service {
+func NewService(repo RepositoryI, redisClient *redis.Client, jwtSecret string) *Service {
 	return &Service{
 		repo:      repo,
 		redis:     redisClient,
@@ -95,7 +95,6 @@ func (s *Service) ValidateAPIKey(ctx context.Context, rawKey string) (orgID stri
 	return keyRecord.OrgID.String(), keyRecord.Scopes, nil
 }
 
-// Login validates credentials and returns a signed JWT.
 func (s *Service) Login(ctx context.Context, email, password string) (token string, user *User, org *Organization, err error) {
 	u, err := s.repo.FindUserByEmail(ctx, email)
 	if err != nil {
@@ -105,8 +104,16 @@ func (s *Service) Login(ctx context.Context, email, password string) (token stri
 		return "", nil, nil, fmt.Errorf("user lookup: %w", err)
 	}
 
+	if u.PasswordHash == "" {
+		return "", nil, nil, errors.New("invalid credentials")
+	}
+
 	if err := bcrypt.CompareHashAndPassword([]byte(u.PasswordHash), []byte(password)); err != nil {
 		return "", nil, nil, errors.New("invalid credentials")
+	}
+
+	if u.OrgID == uuid.Nil {
+		return "", nil, nil, errors.New("user has no organization")
 	}
 
 	org, err = s.repo.FindOrgByID(ctx, u.OrgID)
@@ -142,7 +149,6 @@ type RegisterInput struct {
 	Name     string
 }
 
-// RegisterResponse is returned from Register.
 type RegisterResponse struct {
 	Token  string        `json:"token"`
 	APIKey string        `json:"api_key"` // plaintext — shown once
@@ -202,22 +208,26 @@ func (s *Service) Register(ctx context.Context, in RegisterInput) (*RegisterResp
 // GetMeResult carries the full user + org objects returned by GET /me.
 type GetMeResult struct {
 	User *User
-	Org  *Organization
+	Org  *Organization // nil when the user has no org (OAuth users awaiting onboarding)
 }
 
-// GetMe returns the full user and org objects for the authenticated caller.
+// GetMe returns the user and (optionally) org for the authenticated caller.
+// orgID may be "" for OAuth users who haven't completed onboarding.
 func (s *Service) GetMe(ctx context.Context, userID, orgID string) (*GetMeResult, error) {
 	uid, err := uuid.Parse(userID)
 	if err != nil {
 		return nil, errors.New("invalid user id")
 	}
-	oid, err := uuid.Parse(orgID)
-	if err != nil {
-		return nil, errors.New("invalid org id")
-	}
 	user, err := s.repo.FindUserByID(ctx, uid)
 	if err != nil {
 		return nil, err
+	}
+	if orgID == "" {
+		return &GetMeResult{User: user, Org: nil}, nil
+	}
+	oid, err := uuid.Parse(orgID)
+	if err != nil {
+		return nil, errors.New("invalid org id")
 	}
 	org, err := s.repo.FindOrgByID(ctx, oid)
 	if err != nil {
@@ -226,7 +236,6 @@ func (s *Service) GetMe(ctx context.Context, userID, orgID string) (*GetMeResult
 	return &GetMeResult{User: user, Org: org}, nil
 }
 
-// GetOrg returns org details for a given org ID string.
 func (s *Service) GetOrg(ctx context.Context, orgID string) (*Organization, error) {
 	id, err := uuid.Parse(orgID)
 	if err != nil {
@@ -235,14 +244,12 @@ func (s *Service) GetOrg(ctx context.Context, orgID string) (*Organization, erro
 	return s.repo.FindOrgByID(ctx, id)
 }
 
-// UpdateOrgInput carries mutable org fields.
 type UpdateOrgInput struct {
 	Name             string   `json:"name"`
 	QualityThreshold float32  `json:"quality_threshold"`
 	EnergyBudgetKwh  *float32 `json:"energy_budget_kwh"`
 }
 
-// UpdateOrg modifies org settings.
 func (s *Service) UpdateOrg(ctx context.Context, orgID string, in UpdateOrgInput) (*Organization, error) {
 	id, err := uuid.Parse(orgID)
 	if err != nil {
@@ -254,7 +261,6 @@ func (s *Service) UpdateOrg(ctx context.Context, orgID string, in UpdateOrgInput
 	return s.repo.FindOrgByID(ctx, id)
 }
 
-// ListMembers returns the members of an org.
 func (s *Service) ListMembers(ctx context.Context, orgID string) ([]Member, error) {
 	id, err := uuid.Parse(orgID)
 	if err != nil {
@@ -263,7 +269,6 @@ func (s *Service) ListMembers(ctx context.Context, orgID string) ([]Member, erro
 	return s.repo.ListMembers(ctx, id)
 }
 
-// InviteMemberInput carries fields for adding a new member.
 type InviteMemberInput struct {
 	Email    string `json:"email"`
 	Name     string `json:"name"`
@@ -271,7 +276,6 @@ type InviteMemberInput struct {
 	Password string `json:"password"`
 }
 
-// InviteMember adds a new user to the org.
 func (s *Service) InviteMember(ctx context.Context, orgID string, in InviteMemberInput) (*Member, error) {
 	id, err := uuid.Parse(orgID)
 	if err != nil {
@@ -303,7 +307,6 @@ func (s *Service) InviteMember(ctx context.Context, orgID string, in InviteMembe
 	}, nil
 }
 
-// UpdateMemberRole changes a member's role within the org.
 func (s *Service) UpdateMemberRole(ctx context.Context, orgID, userID, role string) error {
 	oid, err := uuid.Parse(orgID)
 	if err != nil {
@@ -328,20 +331,18 @@ func (s *Service) ListAPIKeys(ctx context.Context, orgID string) ([]APIKey, erro
 	return s.repo.ListAPIKeys(ctx, id)
 }
 
-// CreateAPIKeyInput carries fields for a new API key.
 type CreateAPIKeyInput struct {
-	Name         string
-	Scopes       []string
+	Name          string
+	Scopes        []string
 	ExpiresInDays int
 }
 
 // CreateAPIKeyResult is returned from CreateAPIKey; plaintext shown once.
 type CreateAPIKeyResult struct {
-	Key    APIKey
-	Raw    string // plaintext — shown to user exactly once
+	Key APIKey
+	Raw string // plaintext — shown to user exactly once
 }
 
-// CreateAPIKey generates and persists a new API key for the org.
 func (s *Service) CreateAPIKey(ctx context.Context, orgID, createdByUserID string, in CreateAPIKeyInput) (*CreateAPIKeyResult, error) {
 	oid, err := uuid.Parse(orgID)
 	if err != nil {
@@ -407,14 +408,62 @@ func (s *Service) RemoveMember(ctx context.Context, orgID, userID string) error 
 	return s.repo.RemoveMember(ctx, oid, uid)
 }
 
+// HandleOAuthCallback runs the account-linking logic after a provider callback.
+// It returns a signed JWT and the next URL ("/overview" or "/onboarding/organisation").
+func (s *Service) HandleOAuthCallback(ctx context.Context, provider, providerID, email, name string) (token, nextURL string, err error) {
+	user, err := s.repo.UpsertOAuthUser(ctx, provider, providerID, email, name)
+	if err != nil {
+		return "", "", fmt.Errorf("upsert oauth user: %w", err)
+	}
+
+	signed, jti, err := s.issueJWT(user)
+	if err != nil {
+		return "", "", err
+	}
+
+	orgIDStr := ""
+	if user.OrgID != uuid.Nil {
+		orgIDStr = user.OrgID.String()
+	}
+	sessionData, _ := json.Marshal(map[string]string{
+		"user_id": user.ID.String(),
+		"org_id":  orgIDStr,
+		"role":    user.Role,
+	})
+	s.redis.Set(ctx, "session:"+jti, sessionData, sessionTTL)
+
+	if user.OrgID == uuid.Nil {
+		return signed, "/onboarding/organisation", nil
+	}
+	return signed, "/overview", nil
+}
+
+// RegisterOrg creates an org for an org-less OAuth user and assigns it to them.
+func (s *Service) RegisterOrg(ctx context.Context, userID, orgName string) (*Organization, error) {
+	uid, err := uuid.Parse(userID)
+	if err != nil {
+		return nil, errors.New("invalid user id")
+	}
+	return s.repo.CreateOrgForUser(ctx, uid, OrgInput{
+		Name: orgName,
+		Slug: slugify(orgName),
+		Plan: "free",
+	})
+}
+
 // issueJWT signs a JWT for a user and returns the signed string and jti.
+// When OrgID is uuid.Nil (OAuth user awaiting onboarding) the claim is set to "".
 func (s *Service) issueJWT(u *User) (signed, jti string, err error) {
 	jti = uuid.NewString()
+	orgIDStr := ""
+	if u.OrgID != uuid.Nil {
+		orgIDStr = u.OrgID.String()
+	}
 	claims := jwt.MapClaims{
 		"sub":    u.ID.String(),
-		"org_id": u.OrgID.String(),
+		"org_id": orgIDStr,
 		"role":   u.Role,
-		"exp":    time.Now().Add(15 * time.Minute).Unix(),
+		"exp":    time.Now().Add(24 * time.Hour).Unix(),
 		"iat":    time.Now().Unix(),
 		"jti":    jti,
 	}
@@ -426,7 +475,6 @@ func (s *Service) issueJWT(u *User) (signed, jti string, err error) {
 	return signed, jti, nil
 }
 
-// slugify converts an org name to a URL-safe slug.
 func slugify(name string) string {
 	var b strings.Builder
 	for _, r := range strings.ToLower(name) {

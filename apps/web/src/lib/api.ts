@@ -12,20 +12,35 @@ export class ApiError extends Error {
   }
 }
 
+const TOKEN_KEY = 'ecollm_token';
+
 class ApiClient {
   private baseUrl: string;
   private token: string | null = null;
 
   constructor() {
     this.baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
+    if (typeof window !== 'undefined') {
+      this.token = localStorage.getItem(TOKEN_KEY);
+    }
   }
 
   setToken(token: string) {
     this.token = token;
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(TOKEN_KEY, token);
+    }
   }
 
   clearToken() {
     this.token = null;
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem(TOKEN_KEY);
+    }
+  }
+
+  getToken(): string | null {
+    return this.token;
   }
 
   async request<T>(path: string, options: RequestInit = {}): Promise<T> {
@@ -53,20 +68,22 @@ class ApiClient {
 
   get<T>(path: string, params?: Record<string, string | number | boolean | undefined>): Promise<T> {
     if (params) {
-      const filtered = Object.fromEntries(
-        Object.entries(params).filter(([, v]) => v !== undefined && v !== null),
-      ) as Record<string, string>;
-      const qs = new URLSearchParams(filtered as Record<string, string>).toString();
+      const filtered: Record<string, string> = Object.fromEntries(
+        Object.entries(params)
+          .filter((entry): entry is [string, string | number | boolean] => entry[1] !== undefined && entry[1] !== null)
+          .map(([k, v]) => [k, String(v)]),
+      );
+      const qs = new URLSearchParams(filtered).toString();
       if (qs) return this.request<T>(`${path}?${qs}`);
     }
     return this.request<T>(path);
   }
 
-  post<T>(path: string, body: Record<string, unknown>): Promise<T> {
+  post<T>(path: string, body: object): Promise<T> {
     return this.request<T>(path, { method: 'POST', body: JSON.stringify(body) });
   }
 
-  patch<T>(path: string, body: Record<string, unknown>): Promise<T> {
+  patch<T>(path: string, body: object): Promise<T> {
     return this.request<T>(path, { method: 'PATCH', body: JSON.stringify(body) });
   }
 

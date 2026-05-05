@@ -196,6 +196,20 @@ export interface CreateApiKeyResponse {
 
 // ===== Auth =====
 
+export interface UserProfile {
+  id: string;
+  email: string;
+  name: string;
+  role: string;
+}
+
+export interface OrgProfile {
+  id: string;
+  name: string;
+  slug: string;
+  plan: string;
+}
+
 export interface LoginRequest {
   email: string;
   password: string;
@@ -203,23 +217,13 @@ export interface LoginRequest {
 
 export interface LoginResponse {
   token: string;
-  user: {
-    id: string;
-    email: string;
-    name: string;
-    role: string;
-  };
-  org: {
-    id: string;
-    name: string;
-    slug: string;
-    plan: string;
-  };
+  user: UserProfile;
+  org: OrgProfile;
 }
 
 export interface MeResponse {
-  user: LoginResponse['user'];
-  org: LoginResponse['org'];
+  user: UserProfile;
+  org?: OrgProfile; // absent for OAuth users awaiting org onboarding
 }
 
 // ===== Billing =====
@@ -253,18 +257,8 @@ export interface RegisterRequest {
 
 export interface RegisterResponse {
   token: string;
-  user: {
-    id: string;
-    email: string;
-    name: string;
-    role: string;
-  };
-  org: {
-    id: string;
-    name: string;
-    slug: string;
-    plan: string;
-  };
+  user: UserProfile;
+  org: OrgProfile;
 }
 
 // ===== Admin =====

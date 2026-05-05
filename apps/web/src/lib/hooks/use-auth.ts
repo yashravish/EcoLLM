@@ -34,7 +34,7 @@ export function useRegister() {
     mutationFn: (data) => api.post('/auth/register', data),
     onSuccess: (data) => {
       api.setToken(data.token);
-      queryClient.invalidateQueries({ queryKey: ['me'] });
+      queryClient.setQueryData(['me'], { user: data.user, org: data.org });
     },
   });
 }

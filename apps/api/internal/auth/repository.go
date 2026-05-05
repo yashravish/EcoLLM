@@ -2,10 +2,12 @@ package auth
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -20,27 +22,30 @@ func NewRepository(db *pgxpool.Pool) *Repository {
 }
 
 // User represents a row from the users table.
+// OrgID is uuid.Nil when org_id IS NULL (OAuth users awaiting onboarding).
+// PasswordHash is "" for OAuth-only users.
 type User struct {
 	ID           uuid.UUID
-	OrgID        uuid.UUID
+	OrgID        uuid.UUID // uuid.Nil ↔ NULL in DB (uses COALESCE in all SELECTs)
 	Email        string
-	PasswordHash string
+	PasswordHash string // "" for OAuth users
 	Role         string
 	Name         string
+	AuthMethod   string // 'password' | 'oauth' | 'both'
 	CreatedAt    time.Time
 }
 
 // Organization represents a row from the organizations table.
 type Organization struct {
-	ID                uuid.UUID
-	Name              string
-	Slug              string
-	Plan              string
-	MaxRequestsPerMin int
-	MaxRequestsPerDay int
-	QualityThreshold  float32
-	EnergyBudgetKwh   *float32
-	CreatedAt         time.Time
+	ID                uuid.UUID `json:"id"`
+	Name              string    `json:"name"`
+	Slug              string    `json:"slug"`
+	Plan              string    `json:"plan"`
+	MaxRequestsPerMin int       `json:"max_requests_per_min"`
+	MaxRequestsPerDay int       `json:"max_requests_per_day"`
+	QualityThreshold  float32   `json:"quality_threshold"`
+	EnergyBudgetKwh   *float32  `json:"energy_budget_kwh"`
+	CreatedAt         time.Time `json:"created_at"`
 }
 
 // Member is the public representation of a user within an org.
@@ -83,31 +88,58 @@ type UserInput struct {
 	Name         string
 }
 
-// FindUserByEmail returns a user by email, or nil if not found.
+// userCols is the SELECT column list for the users table.
+// COALESCE(org_id, uuid_nil) makes org_id always scannable into uuid.UUID;
+// callers check uuid.Nil to detect "no org".
+const userCols = `
+	id,
+	COALESCE(org_id, '00000000-0000-0000-0000-000000000000'::uuid) AS org_id,
+	email,
+	COALESCE(password_hash, '') AS password_hash,
+	role,
+	COALESCE(name, '') AS name,
+	auth_method,
+	created_at`
+
+// userColsAliased is the same but with a table alias — used in JOINs.
+const userColsAliased = `
+	u.id,
+	COALESCE(u.org_id, '00000000-0000-0000-0000-000000000000'::uuid) AS org_id,
+	u.email,
+	COALESCE(u.password_hash, '') AS password_hash,
+	u.role,
+	COALESCE(u.name, '') AS name,
+	u.auth_method,
+	u.created_at`
+
+func scanUser(row pgx.Row, u *User) error {
+	return row.Scan(
+		&u.ID, &u.OrgID, &u.Email, &u.PasswordHash,
+		&u.Role, &u.Name, &u.AuthMethod, &u.CreatedAt,
+	)
+}
+
+// FindUserByEmail returns a user by email, or pgx.ErrNoRows if not found.
 func (r *Repository) FindUserByEmail(ctx context.Context, email string) (*User, error) {
-	row := r.db.QueryRow(ctx,
-		`SELECT id, org_id, email, password_hash, role, COALESCE(name,''), created_at
+	u := &User{}
+	if err := scanUser(r.db.QueryRow(ctx,
+		`SELECT`+userCols+`
 		 FROM users WHERE email = $1 AND revoked_at IS NULL`,
 		email,
-	)
-
-	u := &User{}
-	err := row.Scan(&u.ID, &u.OrgID, &u.Email, &u.PasswordHash, &u.Role, &u.Name, &u.CreatedAt)
-	if err != nil {
+	), u); err != nil {
 		return nil, err
 	}
 	return u, nil
 }
 
-// FindUserByID returns a user by ID.
+// FindUserByID returns a user by primary key.
 func (r *Repository) FindUserByID(ctx context.Context, userID uuid.UUID) (*User, error) {
 	u := &User{}
-	err := r.db.QueryRow(ctx,
-		`SELECT id, org_id, email, password_hash, role, COALESCE(name,''), created_at
+	if err := scanUser(r.db.QueryRow(ctx,
+		`SELECT`+userCols+`
 		 FROM users WHERE id = $1 AND revoked_at IS NULL`,
 		userID,
-	).Scan(&u.ID, &u.OrgID, &u.Email, &u.PasswordHash, &u.Role, &u.Name, &u.CreatedAt)
-	if err != nil {
+	), u); err != nil {
 		return nil, err
 	}
 	return u, nil
@@ -115,15 +147,13 @@ func (r *Repository) FindUserByID(ctx context.Context, userID uuid.UUID) (*User,
 
 // FindOrgByID returns an organization by its UUID.
 func (r *Repository) FindOrgByID(ctx context.Context, orgID uuid.UUID) (*Organization, error) {
-	row := r.db.QueryRow(ctx,
+	o := &Organization{}
+	err := r.db.QueryRow(ctx,
 		`SELECT id, name, slug, plan, max_requests_per_min, max_requests_per_day,
 		        quality_threshold, energy_budget_kwh, created_at
 		 FROM organizations WHERE id = $1`,
 		orgID,
-	)
-
-	o := &Organization{}
-	err := row.Scan(
+	).Scan(
 		&o.ID, &o.Name, &o.Slug, &o.Plan,
 		&o.MaxRequestsPerMin, &o.MaxRequestsPerDay,
 		&o.QualityThreshold, &o.EnergyBudgetKwh,
@@ -137,16 +167,14 @@ func (r *Repository) FindOrgByID(ctx context.Context, orgID uuid.UUID) (*Organiz
 
 // FindAPIKeyByPrefix returns the API key record matching a given prefix.
 func (r *Repository) FindAPIKeyByPrefix(ctx context.Context, prefix string) (*APIKey, error) {
-	row := r.db.QueryRow(ctx,
+	k := &APIKey{}
+	err := r.db.QueryRow(ctx,
 		`SELECT id, org_id, created_by, name, key_hash, key_prefix, scopes,
 		        rate_limit_override, last_used_at, expires_at, revoked_at, created_at
 		 FROM api_keys
 		 WHERE key_prefix = $1 AND revoked_at IS NULL`,
 		prefix,
-	)
-
-	k := &APIKey{}
-	err := row.Scan(
+	).Scan(
 		&k.ID, &k.OrgID, &k.CreatedBy, &k.Name, &k.KeyHash, &k.KeyPrefix,
 		&k.Scopes, &k.RateLimitOverride, &k.LastUsedAt, &k.ExpiresAt, &k.RevokedAt,
 		&k.CreatedAt,
@@ -210,11 +238,11 @@ func (r *Repository) CreateOrgAndUser(ctx context.Context, org OrgInput, user Us
 	userID := uuid.New()
 	var u User
 	if err := tx.QueryRow(ctx,
-		`INSERT INTO users (id, org_id, email, password_hash, role, name)
-		 VALUES ($1, $2, $3, $4, $5, $6)
-		 RETURNING id, org_id, email, password_hash, role, COALESCE(name,''), created_at`,
+		`INSERT INTO users (id, org_id, email, password_hash, role, name, auth_method)
+		 VALUES ($1, $2, $3, $4, $5, $6, 'password')
+		 RETURNING id, org_id, email, COALESCE(password_hash,''), role, COALESCE(name,''), auth_method, created_at`,
 		userID, orgID, user.Email, user.PasswordHash, user.Role, user.Name,
-	).Scan(&u.ID, &u.OrgID, &u.Email, &u.PasswordHash, &u.Role, &u.Name, &u.CreatedAt); err != nil {
+	).Scan(&u.ID, &u.OrgID, &u.Email, &u.PasswordHash, &u.Role, &u.Name, &u.AuthMethod, &u.CreatedAt); err != nil {
 		return nil, nil, fmt.Errorf("create user: %w", err)
 	}
 
@@ -275,11 +303,11 @@ func (r *Repository) ListMembers(ctx context.Context, orgID uuid.UUID) ([]Member
 func (r *Repository) InviteMember(ctx context.Context, orgID uuid.UUID, email, passwordHash, name, role string) (*User, error) {
 	u := &User{}
 	err := r.db.QueryRow(ctx,
-		`INSERT INTO users (id, org_id, email, password_hash, role, name)
-		 VALUES ($1, $2, $3, $4, $5, $6)
-		 RETURNING id, org_id, email, password_hash, role, COALESCE(name,''), created_at`,
+		`INSERT INTO users (id, org_id, email, password_hash, role, name, auth_method)
+		 VALUES ($1, $2, $3, $4, $5, $6, 'password')
+		 RETURNING id, org_id, email, COALESCE(password_hash,''), role, COALESCE(name,''), auth_method, created_at`,
 		uuid.New(), orgID, email, passwordHash, role, name,
-	).Scan(&u.ID, &u.OrgID, &u.Email, &u.PasswordHash, &u.Role, &u.Name, &u.CreatedAt)
+	).Scan(&u.ID, &u.OrgID, &u.Email, &u.PasswordHash, &u.Role, &u.Name, &u.AuthMethod, &u.CreatedAt)
 	if err != nil {
 		return nil, err
 	}
@@ -332,4 +360,132 @@ func (r *Repository) ListAPIKeys(ctx context.Context, orgID uuid.UUID) ([]APIKey
 		keys = append(keys, k)
 	}
 	return keys, rows.Err()
+}
+
+// ── OAuth ─────────────────────────────────────────────────────────────────────
+
+// UpsertOAuthUser implements three-way account-linking inside a single transaction:
+//
+//  1. oauth_accounts row found → return linked user (read-only path).
+//  2. Email matches an existing user → insert oauth_accounts + set auth_method='both'.
+//  3. No match → insert new user (org_id/password_hash NULL) + oauth_accounts row.
+func (r *Repository) UpsertOAuthUser(ctx context.Context, provider, providerID, email, name string) (*User, error) {
+	tx, err := r.db.Begin(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback(ctx)
+
+	// Case 1 — existing OAuth link.
+	var u User
+	err = tx.QueryRow(ctx,
+		`SELECT`+userColsAliased+`
+		 FROM oauth_accounts oa
+		 JOIN users u ON u.id = oa.user_id
+		 WHERE oa.provider = $1 AND oa.provider_account_id = $2 AND u.revoked_at IS NULL`,
+		provider, providerID,
+	).Scan(&u.ID, &u.OrgID, &u.Email, &u.PasswordHash, &u.Role, &u.Name, &u.AuthMethod, &u.CreatedAt)
+	if err == nil {
+		if err := tx.Commit(ctx); err != nil {
+			return nil, err
+		}
+		return &u, nil
+	}
+	if !errors.Is(err, pgx.ErrNoRows) {
+		return nil, fmt.Errorf("lookup oauth account: %w", err)
+	}
+
+	// Case 2 — existing password user, same email → link.
+	var u2 User
+	err = tx.QueryRow(ctx,
+		`SELECT`+userCols+`
+		 FROM users WHERE email = $1 AND revoked_at IS NULL`,
+		email,
+	).Scan(&u2.ID, &u2.OrgID, &u2.Email, &u2.PasswordHash, &u2.Role, &u2.Name, &u2.AuthMethod, &u2.CreatedAt)
+	if err == nil {
+		if _, execErr := tx.Exec(ctx,
+			`INSERT INTO oauth_accounts (user_id, provider, provider_account_id)
+			 VALUES ($1, $2, $3)`,
+			u2.ID, provider, providerID,
+		); execErr != nil {
+			return nil, fmt.Errorf("insert oauth account (link): %w", execErr)
+		}
+		if _, execErr := tx.Exec(ctx,
+			`UPDATE users SET auth_method = 'both', updated_at = now() WHERE id = $1`,
+			u2.ID,
+		); execErr != nil {
+			return nil, fmt.Errorf("update auth_method: %w", execErr)
+		}
+		u2.AuthMethod = "both"
+		if err := tx.Commit(ctx); err != nil {
+			return nil, err
+		}
+		return &u2, nil
+	}
+	if !errors.Is(err, pgx.ErrNoRows) {
+		return nil, fmt.Errorf("lookup user by email: %w", err)
+	}
+
+	// Case 3 — brand-new user.
+	var u3 User
+	if err := tx.QueryRow(ctx,
+		`INSERT INTO users (id, email, name, role, auth_method)
+		 VALUES ($1, $2, $3, 'member', 'oauth')
+		 RETURNING
+		   id,
+		   COALESCE(org_id, '00000000-0000-0000-0000-000000000000'::uuid),
+		   email,
+		   COALESCE(password_hash, '') AS password_hash,
+		   role,
+		   COALESCE(name, '') AS name,
+		   auth_method,
+		   created_at`,
+		uuid.New(), email, name,
+	).Scan(&u3.ID, &u3.OrgID, &u3.Email, &u3.PasswordHash, &u3.Role, &u3.Name, &u3.AuthMethod, &u3.CreatedAt); err != nil {
+		return nil, fmt.Errorf("create oauth user: %w", err)
+	}
+	if _, err := tx.Exec(ctx,
+		`INSERT INTO oauth_accounts (user_id, provider, provider_account_id)
+		 VALUES ($1, $2, $3)`,
+		u3.ID, provider, providerID,
+	); err != nil {
+		return nil, fmt.Errorf("insert oauth account (new user): %w", err)
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return nil, err
+	}
+	return &u3, nil
+}
+
+// CreateOrgForUser creates a new org and sets the user's org_id in one transaction.
+// Called by the onboarding endpoint for OAuth users with no org yet.
+func (r *Repository) CreateOrgForUser(ctx context.Context, userID uuid.UUID, org OrgInput) (*Organization, error) {
+	tx, err := r.db.Begin(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback(ctx)
+
+	orgID := uuid.New()
+	var o Organization
+	if err := tx.QueryRow(ctx,
+		`INSERT INTO organizations (id, name, slug, plan, max_requests_per_min, max_requests_per_day, quality_threshold)
+		 VALUES ($1, $2, $3, $4, 60, 10000, 0.7)
+		 RETURNING id, name, slug, plan, max_requests_per_min, max_requests_per_day, quality_threshold, energy_budget_kwh, created_at`,
+		orgID, org.Name, org.Slug, org.Plan,
+	).Scan(&o.ID, &o.Name, &o.Slug, &o.Plan, &o.MaxRequestsPerMin, &o.MaxRequestsPerDay,
+		&o.QualityThreshold, &o.EnergyBudgetKwh, &o.CreatedAt,
+	); err != nil {
+		return nil, fmt.Errorf("create org: %w", err)
+	}
+	if _, err := tx.Exec(ctx,
+		`UPDATE users SET org_id = $1, updated_at = now() WHERE id = $2`,
+		orgID, userID,
+	); err != nil {
+		return nil, fmt.Errorf("set user org: %w", err)
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return nil, err
+	}
+	return &o, nil
 }
