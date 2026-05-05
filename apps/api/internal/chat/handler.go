@@ -1,6 +1,8 @@
 package chat
 
 import (
+	"bufio"
+	"encoding/json"
 	"errors"
 	"fmt"
 
@@ -19,6 +21,8 @@ func NewHandler(svc *Service) *Handler {
 }
 
 // CreateCompletion handles POST /v1/chat/completions and POST /v1/completions.
+// When the request body contains "stream": true, the response is an SSE stream
+// in the OpenAI-compatible format so existing client SDKs work without changes.
 func (h *Handler) CreateCompletion(c *fiber.Ctx) error {
 	var req CompletionRequest
 	if err := c.BodyParser(&req); err != nil {
@@ -29,7 +33,6 @@ func (h *Handler) CreateCompletion(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(err)
 	}
 
-	// Apply defaults
 	if req.MaxTokens == 0 {
 		req.MaxTokens = 512
 	}
@@ -39,6 +42,10 @@ func (h *Handler) CreateCompletion(c *fiber.Ctx) error {
 
 	orgID, _ := c.Locals("org_id").(string)
 	requestID, _ := c.Locals("request_id").(string)
+
+	if req.Stream {
+		return h.handleStream(c, orgID, requestID, &req)
+	}
 
 	resp, err := h.svc.Complete(c.UserContext(), orgID, requestID, &req)
 	if err != nil {
@@ -53,6 +60,35 @@ func (h *Handler) CreateCompletion(c *fiber.Ctx) error {
 	}
 
 	return c.Status(fiber.StatusOK).JSON(resp)
+}
+
+// handleStream opens an SSE connection and writes StreamChunks as they arrive.
+// Each chunk is serialised as "data: {json}\n\n"; the stream is terminated with
+// "data: [DONE]\n\n" so clients following the OpenAI streaming spec work as-is.
+func (h *Handler) handleStream(c *fiber.Ctx, orgID, requestID string, req *CompletionRequest) error {
+	ch, err := h.svc.CompleteStream(c.UserContext(), orgID, requestID, req)
+	if err != nil {
+		return c.Status(fiber.StatusBadGateway).JSON(apierror.ErrInferenceFailed)
+	}
+
+	c.Set("Content-Type", "text/event-stream")
+	c.Set("Cache-Control", "no-cache")
+	c.Set("Connection", "keep-alive")
+	c.Set("X-Accel-Buffering", "no") // disable nginx proxy buffering
+
+	c.Context().SetBodyStreamWriter(func(w *bufio.Writer) {
+		for chunk := range ch {
+			b, err := json.Marshal(chunk)
+			if err != nil {
+				continue
+			}
+			fmt.Fprintf(w, "data: %s\n\n", b)
+			w.Flush()
+		}
+		fmt.Fprint(w, "data: [DONE]\n\n")
+		w.Flush()
+	})
+	return nil
 }
 
 // PreviewRoute handles POST /v1/route/preview — returns the routing decision

@@ -28,40 +28,41 @@ export default function OverviewPage() {
   const hasRequests = (requestList?.requests?.length ?? 0) > 0;
 
   return (
-    <div className="space-y-6">
-      <h1 className="text-xl font-semibold text-gray-900 dark:text-white">Overview</h1>
+    <div className="space-y-6 animate-fade-in">
+      <div>
+        <h1 className="text-lg font-semibold text-eco-50">Overview</h1>
+        <p className="mt-0.5 text-xs text-eco-400 font-mono">Carbon-aware LLM inference — current month</p>
+      </div>
 
       {/* Metric Cards */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <MetricCard
           label="Total Requests"
-          value={summary ? summary.total_requests.toLocaleString() : '—'}
-          icon={<Activity className="h-5 w-5 text-green-600" />}
+          value={summary?.total_requests != null ? summary.total_requests.toLocaleString() : '—'}
+          icon={<Activity className="h-4 w-4 text-eco-300" />}
           loading={usageLoading}
         />
         <MetricCard
           label="Avg Latency"
-          value={summary ? formatLatency(summary.avg_latency_ms) : '—'}
-          icon={<Clock className="h-5 w-5 text-blue-500" />}
+          value={summary?.avg_latency_ms != null ? formatLatency(summary.avg_latency_ms) : '—'}
+          icon={<Clock className="h-4 w-4 text-blue-400" />}
+          color="blue"
           loading={usageLoading}
         />
         <MetricCard
-          label="CO2e Saved"
-          value={
-            summary
-              ? formatCO2(summary.total_co2e_grams)
-              : '—'
-          }
+          label="CO₂e Saved"
+          value={summary?.total_co2e_grams != null ? formatCO2(summary.total_co2e_grams) : '—'}
           subtext="vs GPT-4 equivalent"
-          icon={<Leaf className="h-5 w-5 text-green-600" />}
+          icon={<Leaf className="h-4 w-4 text-accent" />}
           color="green"
           loading={usageLoading}
         />
         <MetricCard
           label="Total Cost"
-          value={summary ? formatCost(summary.total_cost_usd) : '—'}
-          subtext={summary ? `Cache hit ${(summary.cache_hit_rate * 100).toFixed(0)}%` : undefined}
-          icon={<DollarSign className="h-5 w-5 text-amber-500" />}
+          value={summary?.total_cost_usd != null ? formatCost(summary.total_cost_usd) : '—'}
+          subtext={summary?.cache_hit_rate != null ? `Cache hit ${(summary.cache_hit_rate * 100).toFixed(0)}%` : undefined}
+          icon={<DollarSign className="h-4 w-4 text-amber-400" />}
+          color="amber"
           loading={usageLoading}
         />
       </div>

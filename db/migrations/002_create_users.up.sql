@@ -9,7 +9,8 @@ CREATE TABLE IF NOT EXISTS users (
     role          VARCHAR(50)  NOT NULL DEFAULT 'member',  -- admin, member, viewer
     name          VARCHAR(255),
     created_at    TIMESTAMPTZ  NOT NULL DEFAULT now(),
-    updated_at    TIMESTAMPTZ  NOT NULL DEFAULT now()
+    updated_at    TIMESTAMPTZ  NOT NULL DEFAULT now(),
+    revoked_at    TIMESTAMPTZ
 );
 
 CREATE INDEX IF NOT EXISTS idx_users_org_id ON users(org_id);

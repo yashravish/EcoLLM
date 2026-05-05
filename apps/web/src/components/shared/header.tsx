@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Menu, ChevronDown, LogOut, Settings, User } from 'lucide-react';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
@@ -12,50 +13,53 @@ interface HeaderProps {
 
 export function Header({ onMenuClick }: HeaderProps) {
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const router = useRouter();
   const { data: me } = useMe();
   const logoutMutation = useLogout();
 
-  const orgName = me?.org.name ?? 'My Organization';
+  const orgName  = me?.org?.name  ?? 'My Organization';
   const userName = me?.user.name ?? 'Account';
 
   return (
-    <header className="flex h-14 items-center justify-between border-b border-gray-200 bg-white px-4 dark:border-gray-700 dark:bg-gray-900">
-      {/* Left: hamburger + org name */}
+    <header className="flex h-12 items-center justify-between border-b border-eco-600 bg-eco-800 px-4">
+      {/* Left: hamburger + org path */}
       <div className="flex items-center gap-3">
         <button
           onClick={onMenuClick}
-          className="rounded p-1.5 text-gray-500 hover:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 lg:hidden dark:text-gray-400 dark:hover:bg-gray-800"
+          className="rounded p-1.5 text-eco-400 hover:bg-eco-700 hover:text-eco-100 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-accent lg:hidden"
           aria-label="Open navigation menu"
         >
-          <Menu className="h-5 w-5" aria-hidden="true" />
+          <Menu className="h-4 w-4" aria-hidden="true" />
         </button>
-        <span className="hidden text-sm font-medium text-gray-900 dark:text-white sm:block">
-          {orgName}
+
+        <span className="hidden font-mono text-xs text-eco-400 sm:block">
+          <span className="text-eco-600">/</span>{' '}
+          <span className="text-eco-200">{orgName}</span>
         </span>
       </div>
 
-      {/* Right: user dropdown */}
+      {/* Right: user menu */}
       <div className="relative">
         <button
           onClick={() => setUserMenuOpen((o) => !o)}
           aria-expanded={userMenuOpen}
           aria-haspopup="true"
           className={cn(
-            'flex items-center gap-2 rounded-md px-3 py-1.5 text-sm transition-colors',
-            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500',
-            'hover:bg-gray-50 dark:hover:bg-gray-800',
+            'flex items-center gap-2 rounded-md px-2.5 py-1.5 transition-colors duration-150',
+            'focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-accent',
+            'hover:bg-eco-700',
           )}
         >
           <div
-            className="flex h-7 w-7 items-center justify-center rounded-full bg-green-100 text-xs font-semibold text-green-700 dark:bg-green-900/40 dark:text-green-400"
+            className="flex h-6 w-6 items-center justify-center rounded-full bg-accent/10 ring-1 ring-accent/40 font-mono text-[10px] font-bold text-accent"
             aria-hidden="true"
           >
             {userName.charAt(0).toUpperCase()}
           </div>
-          <span className="hidden text-gray-700 dark:text-gray-300 sm:block">{userName}</span>
+          <span className="hidden text-xs text-eco-200 sm:block">{userName}</span>
           <ChevronDown
             className={cn(
-              'h-4 w-4 text-gray-400 transition-transform',
+              'h-3 w-3 text-eco-400 transition-transform duration-150',
               userMenuOpen && 'rotate-180',
             )}
             aria-hidden="true"
@@ -72,32 +76,38 @@ export function Header({ onMenuClick }: HeaderProps) {
             <div
               role="menu"
               aria-label="User menu"
-              className="absolute right-0 z-20 mt-1 w-48 rounded-lg border border-gray-200 bg-white py-1 shadow-lg dark:border-gray-700 dark:bg-gray-900"
+              className={cn(
+                'absolute right-0 z-20 mt-1.5 w-48 animate-fade-in',
+                'rounded-lg border border-eco-600 bg-eco-800 py-1 shadow-xl',
+                'shadow-black/50',
+              )}
             >
+              {me && (
+                <p className="px-4 py-2 font-mono text-[10px] text-eco-400 border-b border-eco-600">
+                  {me.user.email}
+                </p>
+              )}
               <Link
                 href="/settings"
                 role="menuitem"
                 onClick={() => setUserMenuOpen(false)}
-                className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 focus-visible:outline-none focus-visible:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-800"
+                className="flex items-center gap-2.5 px-4 py-2 text-xs text-eco-200 hover:bg-eco-700 hover:text-eco-50 focus-visible:outline-none focus-visible:bg-eco-700 transition-colors"
               >
-                <Settings className="h-4 w-4" aria-hidden="true" />
+                <Settings className="h-3.5 w-3.5" aria-hidden="true" />
                 Settings
               </Link>
-              {me && (
-                <p className="px-4 py-1.5 text-xs text-gray-400 dark:text-gray-500">
-                  {me.user.email}
-                </p>
-              )}
               <button
                 role="menuitem"
                 onClick={() => {
                   setUserMenuOpen(false);
-                  logoutMutation.mutate();
+                  logoutMutation.mutate(undefined, {
+                    onSettled: () => router.push('/login'),
+                  });
                 }}
-                className="flex w-full items-center gap-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50 focus-visible:outline-none focus-visible:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20"
+                className="flex w-full items-center gap-2.5 px-4 py-2 text-xs text-red-400 hover:bg-red-500/10 focus-visible:outline-none focus-visible:bg-red-500/10 transition-colors"
               >
-                <LogOut className="h-4 w-4" aria-hidden="true" />
-                Logout
+                <LogOut className="h-3.5 w-3.5" aria-hidden="true" />
+                Sign out
               </button>
             </div>
           </>

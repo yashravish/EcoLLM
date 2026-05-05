@@ -1,6 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   output: "standalone",
+  transpilePackages: ['react-globe.gl', 'globe.gl', 'three-globe'],
   experimental: {
     typedRoutes: true,
   },

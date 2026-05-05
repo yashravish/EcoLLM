@@ -22,6 +22,7 @@ type CompletionRequest struct {
 	MaxTokens   int            `json:"max_tokens,omitempty"`
 	Temperature float64        `json:"temperature,omitempty"`
 	Model       string         `json:"model,omitempty"` // optional override
+	Stream      bool           `json:"stream,omitempty"`
 	EcoLLM      *EcoLLMOptions `json:"ecollm,omitempty"`
 }
 
@@ -75,6 +76,10 @@ type EnergyMetadata struct {
 	CO2eGrams           float64 `json:"co2e_grams"`
 	GridCarbonIntensity float64 `json:"grid_carbon_intensity"`
 	GridRegion          string  `json:"grid_region"`
+	// EnergySource tells the caller how the energy figure was derived.
+	// "nvml_measured"  — live DCGM/NVML telemetry; third-party verifiable.
+	// "static_estimate" — latency × published model power draw; disclosed estimate.
+	EnergySource        string  `json:"energy_source"`
 }
 
 type CostMetadata struct {
@@ -106,6 +111,32 @@ type ModelCandidate struct {
 	EnergyKwh float64 `json:"energy_kwh"`
 	CostUSD   float64 `json:"cost_usd"`
 }
+
+// ── Streaming types ───────────────────────────────────────────────────────────
+
+// StreamChunk is the SSE payload for each token in a streaming response.
+// It follows the OpenAI streaming format so existing OpenAI SDK clients work
+// without modification.
+type StreamChunk struct {
+	ID      string          `json:"id"`
+	Object  string          `json:"object"`
+	Created int64           `json:"created"`
+	Model   string          `json:"model"`
+	Choices []StreamChoice  `json:"choices"`
+}
+
+type StreamChoice struct {
+	Index        int          `json:"index"`
+	Delta        StreamDelta  `json:"delta"`
+	FinishReason *string      `json:"finish_reason"`
+}
+
+type StreamDelta struct {
+	Role    string `json:"role,omitempty"`
+	Content string `json:"content,omitempty"`
+}
+
+// ── DB record type ─────────────────────────────────────────────────────────────
 
 // RequestRecord is the domain type stored in the requests table.
 type RequestRecord struct {

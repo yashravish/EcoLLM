@@ -64,37 +64,37 @@ type AggregateRow struct {
 
 // RequestDetail is a full request record with joined energy and carbon data.
 type RequestDetail struct {
-	ID                  string
-	OrgID               string
-	RequestID           string
-	PromptOriginal      string
-	PromptOptimized     string
-	TaskType            string
-	Complexity          int
-	ModelSelected       string
-	ModelFallback       string
-	RoutingScore        float64
-	RoutingConfidence   float64
-	UsedFallback        bool
-	CacheHit            bool
-	ResponseText        string
-	FinishReason        string
-	PromptTokens        int
-	CompletionTokens    int
-	TotalTokens         int
-	LatencyMs           int
-	Status              string
-	ErrorMessage        string
-	CreatedAt           time.Time
+	ID                  string    `json:"id"`
+	OrgID               string    `json:"org_id"`
+	RequestID           string    `json:"request_id"`
+	PromptOriginal      string    `json:"prompt_original"`
+	PromptOptimized     string    `json:"prompt_optimized,omitempty"`
+	TaskType            string    `json:"task_type"`
+	Complexity          int       `json:"complexity"`
+	ModelSelected       string    `json:"model_selected"`
+	ModelFallback       string    `json:"model_fallback,omitempty"`
+	RoutingScore        float64   `json:"routing_score"`
+	RoutingConfidence   float64   `json:"routing_confidence"`
+	UsedFallback        bool      `json:"used_fallback"`
+	CacheHit            bool      `json:"cache_hit"`
+	ResponseText        string    `json:"response_text,omitempty"`
+	FinishReason        string    `json:"finish_reason,omitempty"`
+	PromptTokens        int       `json:"prompt_tokens"`
+	CompletionTokens    int       `json:"completion_tokens"`
+	TotalTokens         int       `json:"total_tokens"`
+	LatencyMs           int       `json:"latency_ms"`
+	Status              string    `json:"status"`
+	ErrorMessage        string    `json:"error_message,omitempty"`
+	CreatedAt           time.Time `json:"created_at"`
 	// From energy_measurements (nullable — not all requests have measurements)
-	EnergyKwh           *float64
-	GPUPowerWatts       *float64
+	EnergyKwh           *float64  `json:"energy_kwh,omitempty"`
+	GPUPowerWatts       *float64  `json:"gpu_power_watts,omitempty"`
 	// From carbon_estimates (nullable)
-	CO2eGrams           *float64
-	GridRegion          *string
-	GridCarbonIntensity *float64
-	GPT4EquivalentCO2   *float64
-	SavingsPercent      *float64
+	CO2eGrams           *float64  `json:"co2e_grams,omitempty"`
+	GridRegion          *string   `json:"grid_region,omitempty"`
+	GridCarbonIntensity *float64  `json:"grid_carbon_intensity,omitempty"`
+	GPT4EquivalentCO2   *float64  `json:"gpt4_equivalent_co2,omitempty"`
+	SavingsPercent      *float64  `json:"savings_percent,omitempty"`
 }
 
 // RequestFilter holds optional query-param filters for ListRequests.
@@ -108,23 +108,23 @@ type RequestFilter struct {
 
 // UsageSummary is an aggregated summary over a date range.
 type UsageSummary struct {
-	TotalRequests  int64
-	TotalTokens    int64
-	TotalEnergyKwh float64
-	TotalCO2eGrams float64
-	TotalCostUSD   float64
-	CacheHitRate   float64
-	AvgLatencyMs   float64
+	TotalRequests  int64   `json:"total_requests"`
+	TotalTokens    int64   `json:"total_tokens"`
+	TotalEnergyKwh float64 `json:"total_energy_kwh"`
+	TotalCO2eGrams float64 `json:"total_co2e_grams"`
+	TotalCostUSD   float64 `json:"total_cost_usd"`
+	CacheHitRate   float64 `json:"cache_hit_rate"`
+	AvgLatencyMs   float64 `json:"avg_latency_ms"`
 }
 
 // DailyBreakdown is a single day's aggregated usage.
 type DailyBreakdown struct {
-	Date         string
-	Requests     int64
-	EnergyKwh    float64
-	CO2eGrams    float64
-	CostUSD      float64
-	AvgLatencyMs float64
+	Date         string  `json:"date"`
+	Requests     int64   `json:"requests"`
+	EnergyKwh    float64 `json:"energy_kwh"`
+	CO2eGrams    float64 `json:"co2e_grams"`
+	CostUSD      float64 `json:"cost_usd"`
+	AvgLatencyMs float64 `json:"avg_latency_ms"`
 }
 
 // AggregateHour runs a CTE query over the requests table for the given window

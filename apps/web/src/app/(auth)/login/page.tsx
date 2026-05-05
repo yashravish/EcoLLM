@@ -18,7 +18,7 @@ import {
 } from '@/components/auth/oauth-section';
 
 const schema = z.object({
-  email:    z.string().email('Invalid email'),
+  email:    z.string().min(1, 'Email is required'),
   password: z.string().min(1, 'Password is required'),
 });
 
@@ -37,7 +37,7 @@ function LoginInner() {
     register,
     handleSubmit,
     formState: { errors, isSubmitting },
-  } = useForm<FormValues>({ resolver: zodResolver(schema), reValidateMode: 'onBlur' });
+  } = useForm<FormValues>({ resolver: zodResolver(schema), mode: 'onBlur', reValidateMode: 'onChange' });
 
   const onSubmit = async (values: FormValues) => {
     setServerError(null);
@@ -45,8 +45,10 @@ function LoginInner() {
       await login.mutateAsync(values);
       router.push('/overview');
     } catch (err) {
-      if (err instanceof ApiError) {
-        setServerError(err.message);
+      if (err instanceof ApiError && err.status === 401) {
+        setServerError('Incorrect email or password.');
+      } else if (err instanceof ApiError && err.status === 429) {
+        setServerError('Too many attempts. Please wait a moment and try again.');
       } else {
         setServerError('Something went wrong. Please try again.');
       }

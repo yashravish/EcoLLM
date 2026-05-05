@@ -10,8 +10,9 @@ interface ImpactSummaryProps {
 
 export function ImpactSummary({ totalCO2eSavedGrams, loading = false }: ImpactSummaryProps) {
   const trees = co2ToTrees(totalCO2eSavedGrams);
+  const treesLabel = trees > 0 ? `${trees.toLocaleString()} ${trees === 1 ? 'tree' : 'trees'}` : '< 1 tree';
   const label = formatCO2(totalCO2eSavedGrams);
-  const ariaLabel = `${label} CO2e avoided this period. Equivalent to ${trees} tree-days of carbon absorption.`;
+  const ariaLabel = `${label} CO2e avoided this period. Equivalent to ${treesLabel} absorbing CO₂ for a day.`;
 
   if (loading) {
     return (
@@ -45,7 +46,7 @@ export function ImpactSummary({ totalCO2eSavedGrams, loading = false }: ImpactSu
           <p className="text-sm text-gray-500 dark:text-gray-400">
             Equivalent to{' '}
             <span className="font-semibold text-gray-900 dark:text-white">
-              {trees.toLocaleString()} {trees === 1 ? 'tree' : 'trees'}
+              {treesLabel}
             </span>{' '}
             absorbing CO₂ for a day
           </p>

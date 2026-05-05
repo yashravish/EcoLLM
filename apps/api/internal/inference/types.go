@@ -9,7 +9,20 @@ type InferenceResult struct {
 	LatencyMs        int
 	UsedFallback     bool
 	ModelUsed        string
+	// MeasuredEnergyWh is populated when the inference-gateway injected a
+	// X-Measured-Energy-Wh header — meaning live DCGM/NVML telemetry was
+	// available. Zero means the carbon layer should use its static estimate.
+	MeasuredEnergyWh float64
 }
+
+// InferenceChunk is a single token chunk emitted during a streaming response.
+type InferenceChunk struct {
+	Text         string
+	FinishReason string // empty until the final chunk
+	ModelUsed    string
+}
+
+// ── vLLM wire types (non-streaming) ──────────────────────────────────────────
 
 // vLLMRequest is the OpenAI-compatible request sent to the vLLM HTTP endpoint.
 type vLLMRequest struct {
@@ -43,4 +56,25 @@ type vLLMUsage struct {
 	PromptTokens     int `json:"prompt_tokens"`
 	CompletionTokens int `json:"completion_tokens"`
 	TotalTokens      int `json:"total_tokens"`
+}
+
+// ── vLLM wire types (streaming) ───────────────────────────────────────────────
+
+type vLLMStreamChunk struct {
+	ID      string              `json:"id"`
+	Object  string              `json:"object"`
+	Created int64               `json:"created"`
+	Model   string              `json:"model"`
+	Choices []vLLMStreamChoice  `json:"choices"`
+}
+
+type vLLMStreamChoice struct {
+	Index        int        `json:"index"`
+	Delta        vLLMDelta  `json:"delta"`
+	FinishReason string     `json:"finish_reason"`
+}
+
+type vLLMDelta struct {
+	Role    string `json:"role,omitempty"`
+	Content string `json:"content"`
 }

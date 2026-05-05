@@ -15,7 +15,8 @@ export function formatCost(usd: number): string {
   return `$${usd.toFixed(2)}`;
 }
 
-export function formatLatency(ms: number): string {
+export function formatLatency(ms: number | undefined | null): string {
+  if (ms == null || isNaN(ms)) return '—';
   if (ms < 1000) return `${Math.round(ms)}ms`;
   return `${(ms / 1000).toFixed(1)}s`;
 }
@@ -33,8 +34,11 @@ export function co2ToTrees(grams: number): number {
   return Math.round(grams / 60.3);
 }
 
-export function formatRelativeTime(dateStr: string): string {
-  const diffMs = Date.now() - new Date(dateStr).getTime();
+export function formatRelativeTime(dateStr: string | undefined | null): string {
+  if (!dateStr) return '—';
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return '—';
+  const diffMs = Date.now() - d.getTime();
   const diffSec = Math.floor(diffMs / 1000);
   if (diffSec < 60) return `${diffSec}s ago`;
   const diffMin = Math.floor(diffSec / 60);
@@ -44,7 +48,8 @@ export function formatRelativeTime(dateStr: string): string {
   return `${Math.floor(diffHr / 24)}d ago`;
 }
 
-export function truncate(text: string, maxLen: number): string {
+export function truncate(text: string | undefined | null, maxLen: number): string {
+  if (!text) return '';
   if (text.length <= maxLen) return text;
   return text.slice(0, maxLen) + '…';
 }

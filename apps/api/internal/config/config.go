@@ -28,6 +28,13 @@ type Config struct {
 	InferenceLlama13BURL string
 	InferenceLlama70BURL string
 
+	// External model names sent to upstream API (leave empty for local vLLM/Ollama)
+	InferenceAPIKey          string
+	InferencePhi3Model       string
+	InferenceMistralModel    string
+	InferenceLlama13BModel   string
+	InferenceLlama70BModel   string
+
 	// Carbon / energy
 	GridAPIKey    string  // Electricity Maps API key (optional; static fallback when empty)
 	PUEMultiplier float64 // Power Usage Effectiveness multiplier (default 1.3)
@@ -40,6 +47,14 @@ type Config struct {
 	EnableCarbonTracking     bool
 	EnableCache              bool
 	EnableFallback           bool
+
+	// OAuth
+	GitHubClientID     string
+	GitHubClientSecret string
+	GoogleClientID     string
+	GoogleClientSecret string
+	APIBaseURL         string // backend origin used to build OAuth redirect URLs
+	FrontendURL        string // frontend origin for post-auth redirects
 }
 
 // Load reads configuration from environment variables, applying defaults for
@@ -56,8 +71,21 @@ func Load() (*Config, error) {
 		InferenceLlama13BURL: getEnv("INFERENCE_LLAMA13B_URL", "http://vllm-llama13b:8002"),
 		InferenceLlama70BURL: getEnv("INFERENCE_LLAMA70B_URL", "http://vllm-llama70b:8003"),
 
+		InferenceAPIKey:        getEnv("INFERENCE_API_KEY", ""),
+		InferencePhi3Model:     getEnv("INFERENCE_PHI3_MODEL", ""),
+		InferenceMistralModel:  getEnv("INFERENCE_MISTRAL_MODEL", ""),
+		InferenceLlama13BModel: getEnv("INFERENCE_LLAMA13B_MODEL", ""),
+		InferenceLlama70BModel: getEnv("INFERENCE_LLAMA70B_MODEL", ""),
+
 		GridAPIKey:   getEnv("GRID_API_KEY", ""),
 		OTelEndpoint: getEnv("OTEL_EXPORTER_OTLP_ENDPOINT", ""),
+
+		GitHubClientID:     getEnv("GITHUB_CLIENT_ID", ""),
+		GitHubClientSecret: getEnv("GITHUB_CLIENT_SECRET", ""),
+		GoogleClientID:     getEnv("GOOGLE_CLIENT_ID", ""),
+		GoogleClientSecret: getEnv("GOOGLE_CLIENT_SECRET", ""),
+		APIBaseURL:         getEnv("API_BASE_URL", "http://localhost:8080"),
+		FrontendURL:        getEnv("FRONTEND_URL", "http://localhost:3000"),
 
 		EnablePromptOptimization: getEnvBool("ENABLE_PROMPT_OPTIMIZATION", true),
 		EnableCarbonTracking:     getEnvBool("ENABLE_CARBON_TRACKING", true),

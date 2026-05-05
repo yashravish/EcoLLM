@@ -5,7 +5,7 @@ import { Loader2, Leaf } from 'lucide-react';
 // ── Shared constants ──────────────────────────────────────────────────────────
 
 export const OAUTH_BTN =
-  'flex w-full items-center justify-center gap-2.5 rounded-md border border-white/10 bg-eco-800/60 px-4 py-2 text-sm font-medium text-eco-300 transition-colors hover:bg-eco-700/50 hover:text-eco-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/30 disabled:opacity-50 disabled:cursor-not-allowed';
+  'flex w-full items-center justify-center gap-2.5 rounded-md border border-white/10 bg-eco-800/60 px-4 py-2 text-sm font-medium text-eco-200 transition-colors hover:bg-eco-700/50 hover:text-eco-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/30 disabled:opacity-50 disabled:cursor-not-allowed';
 
 export const OAUTH_ERRORS: Record<string, string> = {
   oauth_no_email:

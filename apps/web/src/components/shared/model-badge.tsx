@@ -7,7 +7,8 @@ const MODEL_COLORS: Record<string, string> = {
   '70b': 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400',
 };
 
-function getModelColor(name: string): string {
+function getModelColor(name: string | undefined | null): string {
+  if (!name) return 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300';
   const lower = name.toLowerCase();
   for (const [key, cls] of Object.entries(MODEL_COLORS)) {
     if (lower.includes(key)) return cls;
@@ -15,9 +16,9 @@ function getModelColor(name: string): string {
   return 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300';
 }
 
-export function ModelBadge({ name }: { name: string }) {
+export function ModelBadge({ name }: { name: string | undefined | null }) {
   const colorClass = getModelColor(name);
-  const displayName = name.replace(/_/g, '-');
+  const displayName = name ? name.replace(/_/g, '-') : 'Unknown';
 
   return (
     <span

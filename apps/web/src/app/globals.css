@@ -3,19 +3,193 @@
 @tailwind utilities;
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --bg:           #060D09;
+  --surface:      #0A1510;
+  --surface-hi:   #0F1E14;
+  --border:       #162A1C;
+  --border-hi:    #1E3826;
+  --accent:       #00E87A;
+  --accent-dim:   #00A855;
+  --accent-bright:#4DFFAA;
+  --accent-glow:  rgba(0, 232, 122, 0.12);
+  --text:         #D4EDD9;
+  --text-muted:   #4B8A60;
+  --text-dim:     #2D5A3D;
+  --amber:        #F59E0B;
+  --blue:         #60A5FA;
+  --red:          #F87171;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+@layer base {
+  *, *::before, *::after {
+    border-color: #162A1C;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    background-color: #060D09;
+    color: #D4EDD9;
+    font-family: var(--font-outfit), system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  ::-webkit-scrollbar {
+    width: 4px;
+    height: 4px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #1E3826;
+    border-radius: 2px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #2D5A3D;
+  }
+
+  ::selection {
+    background: rgba(0, 232, 122, 0.2);
+    color: #4DFFAA;
   }
 }
 
-body {
-  color: var(--foreground);
-  background: var(--background);
-  font-family: var(--font-inter), system-ui, sans-serif;
+@layer utilities {
+  .font-data {
+    font-family: var(--font-space-mono), 'Courier New', monospace;
+  }
+
+  .text-accent {
+    color: #00E87A;
+  }
+
+  .bg-surface {
+    background-color: #0A1510;
+  }
+
+  .bg-elevated {
+    background-color: #0F1E14;
+  }
+
+  /* Animated grid background for auth pages */
+  .bg-grid {
+    background-image:
+      linear-gradient(rgba(22, 42, 28, 0.6) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(22, 42, 28, 0.6) 1px, transparent 1px);
+    background-size: 40px 40px;
+  }
+
+  /* Glow pulse for active/live elements */
+  .glow-accent {
+    box-shadow: 0 0 0 1px rgba(0, 232, 122, 0.3), 0 0 16px rgba(0, 232, 122, 0.15);
+  }
+
+  .accent-strip {
+    background: linear-gradient(90deg, #00E87A, #00A855);
+  }
+
+  .accent-strip-amber {
+    background: linear-gradient(90deg, #F59E0B, #D97706);
+  }
+
+  .accent-strip-blue {
+    background: linear-gradient(90deg, #60A5FA, #3B82F6);
+  }
+
+  .accent-strip-red {
+    background: linear-gradient(90deg, #F87171, #EF4444);
+  }
+}
+
+/* ── Auth left-panel ambient animations ───────────────────────────────── */
+.lp-orb {
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+  filter: blur(64px);
+}
+.lp-orb-1 {
+  width: 480px; height: 480px;
+  bottom: -5%; left: -8%;
+  background: radial-gradient(circle, rgba(0,232,122,0.18) 0%, transparent 68%);
+  animation: lp-breathe 8s ease-in-out infinite;
+}
+.lp-orb-2 {
+  width: 260px; height: 260px;
+  top: 6%; right: 2%;
+  background: radial-gradient(circle, rgba(0,232,122,0.11) 0%, transparent 68%);
+  animation: lp-breathe 12s ease-in-out 4s infinite;
+}
+.lp-particle {
+  position: absolute;
+  border-radius: 50%;
+  background: #00E87A;
+  pointer-events: none;
+  animation: lp-float linear infinite;
+  opacity: 0;
+}
+.auth-card-glow {
+  position: relative;
+  animation: auth-card-pulse 9s ease-in-out infinite;
+}
+.auth-card-glow::before {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border-radius: calc(1rem + 1px);
+  padding: 1px;
+  background: linear-gradient(
+    135deg,
+    rgba(0,232,122,0.50) 0%,
+    rgba(77,255,170,0.22) 20%,
+    rgba(0,232,122,0.10) 50%,
+    rgba(0,168,85,0.03) 75%,
+    transparent 100%
+  );
+  background-size: 250% 250%;
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+  pointer-events: none;
+  animation: border-aurora 8s ease-in-out infinite alternate;
+}
+
+@keyframes lp-breathe {
+  0%, 100% { opacity: 0.65; transform: scale(1); }
+  50%       { opacity: 1;    transform: scale(1.14); }
+}
+@keyframes lp-float {
+  0%   { transform: translateY(0);      opacity: 0; }
+  12%  { opacity: 0.7; }
+  88%  { opacity: 0.4; }
+  100% { transform: translateY(-160px); opacity: 0; }
+}
+@keyframes auth-card-pulse {
+  0%, 100% { box-shadow: 0 20px 60px rgba(0,0,0,0.5); }
+  50%       { box-shadow: 0 20px 60px rgba(0,0,0,0.5), 0 0 80px rgba(0,232,122,0.07); }
+}
+@keyframes border-aurora {
+  0%   { background-position: 0% 0%; }
+  100% { background-position: 100% 100%; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .lp-orb-1, .lp-orb-2, .lp-particle, .auth-card-glow, .auth-card-glow::before { animation: none !important; }
+}
+
+/* Blinking cursor animation */
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+.cursor-blink::after {
+  content: '▋';
+  color: #00E87A;
+  animation: blink 1.2s step-end infinite;
+  margin-left: 2px;
 }

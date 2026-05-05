@@ -1,13 +1,20 @@
 import { TrendingUp, TrendingDown, Minus } from 'lucide-react';
-import { Card, CardContent } from '@/components/ui/card';
-import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 
-const colorClasses = {
-  default: 'text-gray-900 dark:text-white',
-  green: 'text-green-700 dark:text-green-400',
-  amber: 'text-amber-700 dark:text-amber-400',
-  red: 'text-red-700 dark:text-red-400',
+const stripClass: Record<string, string> = {
+  default: 'accent-strip',
+  green:   'accent-strip',
+  amber:   'accent-strip-amber',
+  blue:    'accent-strip-blue',
+  red:     'accent-strip-red',
+};
+
+const valueClass: Record<string, string> = {
+  default: 'text-eco-50',
+  green:   'text-accent',
+  amber:   'text-amber-400',
+  blue:    'text-blue-400',
+  red:     'text-red-400',
 };
 
 interface TrendProps {
@@ -21,7 +28,7 @@ interface MetricCardProps {
   subtext?: string;
   trend?: TrendProps;
   icon?: React.ReactNode;
-  color?: 'default' | 'green' | 'amber' | 'red';
+  color?: 'default' | 'green' | 'amber' | 'blue' | 'red';
   loading?: boolean;
 }
 
@@ -39,51 +46,52 @@ export function MetricCard({
     .join(', ');
 
   if (loading) {
-    return (
-      <Card>
-        <CardContent className="pt-6">
-          <LoadingSkeleton />
-        </CardContent>
-      </Card>
-    );
+    return <LoadingSkeleton />;
   }
 
   return (
-    <Card aria-label={ariaLabel}>
-      <CardContent className="pt-6">
-        <div className="flex items-start justify-between">
-          <div className="flex-1">
-            <p className="text-sm font-medium text-gray-500 dark:text-gray-400">{label}</p>
-            <p className={cn('mt-1 text-2xl font-bold tabular-nums', colorClasses[color])}>
-              {value}
-            </p>
-            {(subtext || trend) && (
-              <div className="mt-1 flex items-center gap-1.5">
-                {trend && <TrendIcon direction={trend.direction} value={trend.value} />}
-                {subtext && (
-                  <span className="text-xs text-gray-500 dark:text-gray-400">{subtext}</span>
-                )}
-              </div>
-            )}
-          </div>
-          {icon && (
-            <div
-              className="flex h-10 w-10 items-center justify-center rounded-lg bg-gray-100 dark:bg-gray-800"
-              aria-hidden="true"
-            >
-              {icon}
+    <div
+      aria-label={ariaLabel}
+      className="relative overflow-hidden rounded-lg border border-eco-600 bg-eco-800 p-5 transition-all duration-200 hover:border-eco-500 hover:bg-eco-700"
+    >
+      {/* Accent strip */}
+      <div className={cn('absolute top-0 left-0 right-0 h-[2px]', stripClass[color])} aria-hidden="true" />
+
+      <div className="mt-1 flex items-start justify-between">
+        <div className="flex-1 min-w-0">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-eco-400">
+            {label}
+          </p>
+          <p className={cn('mt-2 font-mono text-2xl font-bold tabular-nums leading-none', valueClass[color])}>
+            {value}
+          </p>
+          {(subtext || trend) && (
+            <div className="mt-2 flex items-center gap-1.5">
+              {trend && <TrendIndicator direction={trend.direction} value={trend.value} />}
+              {subtext && (
+                <span className="font-mono text-[10px] text-eco-400">{subtext}</span>
+              )}
             </div>
           )}
         </div>
-      </CardContent>
-    </Card>
+
+        {icon && (
+          <div
+            className="flex h-8 w-8 items-center justify-center rounded border border-eco-500 bg-eco-700 shrink-0"
+            aria-hidden="true"
+          >
+            {icon}
+          </div>
+        )}
+      </div>
+    </div>
   );
 }
 
-function TrendIcon({ direction, value }: TrendProps) {
+function TrendIndicator({ direction, value }: TrendProps) {
   if (direction === 'up') {
     return (
-      <span className="flex items-center gap-0.5 text-xs font-medium text-green-600 dark:text-green-400">
+      <span className="flex items-center gap-0.5 font-mono text-[10px] font-medium text-accent">
         <TrendingUp className="h-3 w-3" aria-hidden="true" />
         {value}
       </span>
@@ -91,14 +99,14 @@ function TrendIcon({ direction, value }: TrendProps) {
   }
   if (direction === 'down') {
     return (
-      <span className="flex items-center gap-0.5 text-xs font-medium text-red-600 dark:text-red-400">
+      <span className="flex items-center gap-0.5 font-mono text-[10px] font-medium text-red-400">
         <TrendingDown className="h-3 w-3" aria-hidden="true" />
         {value}
       </span>
     );
   }
   return (
-    <span className="flex items-center gap-0.5 text-xs font-medium text-gray-500">
+    <span className="flex items-center gap-0.5 font-mono text-[10px] font-medium text-eco-400">
       <Minus className="h-3 w-3" aria-hidden="true" />
       {value}
     </span>
@@ -107,10 +115,17 @@ function TrendIcon({ direction, value }: TrendProps) {
 
 function LoadingSkeleton() {
   return (
-    <div aria-busy="true" aria-label="Loading metric" className="space-y-2">
-      <Skeleton className="h-4 w-24" />
-      <Skeleton className="h-8 w-32" />
-      <Skeleton className="h-3 w-16" />
+    <div
+      aria-busy="true"
+      aria-label="Loading metric"
+      className="relative overflow-hidden rounded-lg border border-eco-600 bg-eco-800 p-5"
+    >
+      <div className="absolute top-0 left-0 right-0 h-[2px] bg-eco-600" />
+      <div className="mt-1 space-y-3">
+        <div className="h-2.5 w-20 rounded bg-eco-700 animate-pulse" />
+        <div className="h-7 w-28 rounded bg-eco-700 animate-pulse" />
+        <div className="h-2 w-14 rounded bg-eco-700 animate-pulse" />
+      </div>
     </div>
   );
 }

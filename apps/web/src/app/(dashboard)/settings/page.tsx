@@ -119,7 +119,7 @@ function RoleBadge({ role }: { role: string }) {
 export default function SettingsPage() {
   const [showInviteForm, setShowInviteForm] = useState(false);
   const { data: me } = useMe();
-  const orgId = (me as any)?.org_id as string | undefined;
+  const orgId = me?.org?.id;
 
   const { data: org, isLoading: orgLoading } = useOrgSettings(orgId);
   const { data: membersData, isLoading: membersLoading } = useMembers(orgId);
@@ -324,7 +324,7 @@ export default function SettingsPage() {
                   <p className="text-xs text-gray-400 truncate">{member.email}</p>
                 </div>
                 <RoleBadge role={member.role} />
-                {member.id !== orgId && (
+                {member.id !== me?.user?.id && (
                   <Button
                     variant="ghost"
                     size="icon"

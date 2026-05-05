@@ -86,7 +86,12 @@ func GPUPowerForModel(modelName string) float64 {
 
 // CalculateEnergy computes a full EnergyMeasurement from the given inputs.
 //
-// Formula (SCI Spec / Architecture Appendix B):
+// When input.MeasuredEnergyWh > 0, the inference-gateway provided a live GPU
+// reading (DCGM/NVML). That value is used directly and EnergySource is set to
+// "nvml_measured". Otherwise the standard formula is applied and EnergySource
+// is set to "static_estimate".
+//
+// Formula (static path, SCI Spec / Architecture Appendix B):
 //
 //	inferenceEnergyWh = (gpu_power_watts × inference_time_hours) / batch_size
 //	totalEnergyWh     = inferenceEnergyWh × pue_multiplier
@@ -101,6 +106,23 @@ func CalculateEnergy(input EnergyInput) EnergyMeasurement {
 		batch = 1
 	}
 
+	// Measured path: live DCGM/NVML telemetry from inference-gateway header.
+	if input.MeasuredEnergyWh > 0 {
+		totalWh := input.MeasuredEnergyWh
+		return EnergyMeasurement{
+			ModelName:         input.ModelName,
+			GPUPowerWatts:     0, // not applicable; real power varied during inference
+			InferenceTimeMs:   input.InferenceMs,
+			BatchSize:         batch,
+			InferenceEnergyWh: totalWh,
+			PUEMultiplier:     pue,
+			TotalEnergyWh:     totalWh,
+			TotalEnergyKwh:    totalWh / 1000.0,
+			EnergySource:      "nvml_measured",
+		}
+	}
+
+	// Static estimate path: published per-model power draw × inference time.
 	power := GPUPowerForModel(input.ModelName)
 	inferenceHours := float64(input.InferenceMs) / 3_600_000.0
 	inferenceWh := power * inferenceHours / float64(batch)
@@ -115,5 +137,6 @@ func CalculateEnergy(input EnergyInput) EnergyMeasurement {
 		PUEMultiplier:     pue,
 		TotalEnergyWh:     totalWh,
 		TotalEnergyKwh:    totalWh / 1000.0,
+		EnergySource:      "static_estimate",
 	}
 }

@@ -25,10 +25,11 @@ export default function CarbonPage() {
     );
   }
 
+  const totalRequests =
+    data?.model_energy_breakdown?.reduce((sum, m) => sum + m.request_count, 0) ?? 0;
+
   const avgCO2eGrams =
-    data && data.daily_breakdown.length > 0
-      ? data.total_co2e_grams / data.daily_breakdown.length
-      : 0;
+    totalRequests > 0 ? (data?.total_co2e_grams ?? 0) / totalRequests : 0;
 
   const savedGrams = data
     ? data.gpt4_equivalent_co2e_grams - data.total_co2e_grams
@@ -55,9 +56,9 @@ export default function CarbonPage() {
         <CarbonComparison
           avgCO2eGrams={avgCO2eGrams}
           gpt4EquivalentGrams={
-            data && data.daily_breakdown.length > 0
-              ? data.gpt4_equivalent_co2e_grams / data.daily_breakdown.length
-              : 36
+            totalRequests > 0
+              ? (data?.gpt4_equivalent_co2e_grams ?? 0) / totalRequests
+              : 0
           }
           savingsPercent={data?.savings_percent ?? 0}
           gridRegion={data?.grid_region ?? 'US-EAST'}

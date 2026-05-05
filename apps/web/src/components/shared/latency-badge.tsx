@@ -7,7 +7,10 @@ function getLatencyColor(ms: number): string {
   return 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400';
 }
 
-export function LatencyBadge({ latencyMs }: { latencyMs: number }) {
+export function LatencyBadge({ latencyMs }: { latencyMs: number | undefined | null }) {
+  if (latencyMs == null || isNaN(latencyMs)) {
+    return <span className="text-xs text-gray-400">—</span>;
+  }
   const colorClass = getLatencyColor(latencyMs);
   const label = formatLatency(latencyMs);
 

@@ -24,7 +24,19 @@ export function useRevokeApiKey() {
   const queryClient = useQueryClient();
   return useMutation<void, Error, string>({
     mutationFn: (id) => api.delete(`/api-keys/${id}`),
-    onSuccess: () => {
+    onMutate: async (id) => {
+      await queryClient.cancelQueries({ queryKey: ['api-keys'] });
+      const previous = queryClient.getQueryData<ApiKey[]>(['api-keys']);
+      queryClient.setQueryData<ApiKey[]>(['api-keys'], (old) =>
+        old ? old.filter((k) => k.id !== id) : [],
+      );
+      return { previous };
+    },
+    onError: (_err, _id, context) => {
+      const ctx = context as { previous?: ApiKey[] } | undefined;
+      if (ctx?.previous) queryClient.setQueryData(['api-keys'], ctx.previous);
+    },
+    onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ['api-keys'] });
     },
   });

@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Settings, Cpu, GitBranch, BarChart3, Zap } from 'lucide-react';
+import { Settings, Cpu, GitBranch, BarChart3, Leaf } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const ADMIN_NAV = [
@@ -53,7 +53,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             href="/overview"
             className="flex items-center gap-2 text-xs text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300"
           >
-            <Zap className="h-3 w-3" aria-hidden="true" />
+            <Leaf className="h-3 w-3" aria-hidden="true" />
             Back to dashboard
           </Link>
         </div>

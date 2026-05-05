@@ -29,7 +29,9 @@ interface UsageChartProps {
 }
 
 function formatDate(dateStr: string): string {
-  const d = new Date(dateStr);
+  if (!dateStr) return '';
+  const d = new Date(dateStr.includes('T') ? dateStr : `${dateStr}T00:00:00`);
+  if (isNaN(d.getTime())) return dateStr;
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
 
@@ -48,6 +50,10 @@ export function UsageChart({ data, period, onPeriodChange, loading = false }: Us
       <CardContent>
         {loading ? (
           <LoadingSkeleton variant="chart" />
+        ) : data.length === 0 ? (
+          <div className="flex h-64 items-center justify-center text-sm text-gray-400">
+            No data for this period
+          </div>
         ) : (
           <>
             <div

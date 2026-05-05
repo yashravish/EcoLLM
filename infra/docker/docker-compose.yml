@@ -111,7 +111,7 @@ services:
       INFERENCE_MISTRAL_URL: http://inference-gateway:8090/mistral
       INFERENCE_LLAMA13B_URL: http://inference-gateway:8090/llama13b
       INFERENCE_LLAMA70B_URL: http://inference-gateway:8090/llama70b
-      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
     depends_on:
       postgres:
         condition: service_healthy

@@ -205,10 +205,13 @@ func (s *Service) Complete(ctx context.Context, orgID, requestID string, req *Co
 	}
 
 	// Energy + carbon calculation.
+	// When the inference-gateway measured real GPU watt-hours, pass them through
+	// so CalculateEnergy skips the static estimate and uses the hardware reading.
 	measurement := carbon.CalculateEnergy(carbon.EnergyInput{
-		ModelName:   result.ModelUsed,
-		InferenceMs: int64(latencyMs),
-		BatchSize:   1,
+		ModelName:        result.ModelUsed,
+		InferenceMs:      int64(latencyMs),
+		BatchSize:        1,
+		MeasuredEnergyWh: result.MeasuredEnergyWh,
 	})
 	energyKwh := measurement.TotalEnergyKwh
 	gridIntensity, gridRegion := s.estimator.GridIntensity()
@@ -268,6 +271,7 @@ func (s *Service) Complete(ctx context.Context, orgID, requestID string, req *Co
 				CO2eGrams:           co2eGrams,
 				GridCarbonIntensity: gridIntensity,
 				GridRegion:          gridRegion,
+				EnergySource:        measurement.EnergySource,
 			},
 			Cost: CostMetadata{
 				InferenceCostUSD:     decision.EstimatedCost,
@@ -310,6 +314,71 @@ func (s *Service) Complete(ctx context.Context, orgID, requestID string, req *Co
 		Msg("inference completed")
 
 	return resp, nil
+}
+
+// CompleteStream runs the routing pipeline and returns a channel of StreamChunks
+// for SSE delivery to the caller. Streaming requests skip the response cache
+// (streams are not repeatable) but still go through prompt optimization and routing.
+func (s *Service) CompleteStream(ctx context.Context, orgID, requestID string, req *CompletionRequest) (<-chan StreamChunk, error) {
+	userPrompt := extractUserPrompt(req.Messages)
+
+	optimized := userPrompt
+	if s.cfg.EnablePromptOptimization {
+		if opt, err := s.optimizer.Optimize(ctx, userPrompt); err == nil {
+			optimized = opt
+		}
+	}
+
+	classification := s.classifier.Classify(optimized)
+
+	var constraints *router.Constraints
+	if req.EcoLLM != nil {
+		constraints = &router.Constraints{
+			MaxLatencyMs: req.EcoLLM.MaxLatencyMs,
+			MinQuality:   req.EcoLLM.MinQuality,
+		}
+	}
+	decision := s.selector.Select(classification, constraints)
+
+	msgs := substituteOptimizedPrompt(req.Messages, userPrompt, optimized)
+	infMsgs := make([]inference.InferenceMessage, len(msgs))
+	for i, m := range msgs {
+		infMsgs[i] = inference.InferenceMessage{Role: m.Role, Content: m.Content}
+	}
+
+	rawCh, err := s.gateway.InferStreamWithFallback(ctx, decision, infMsgs, req.MaxTokens, req.Temperature)
+	if err != nil {
+		return nil, err
+	}
+
+	out := make(chan StreamChunk, 64)
+	go func() {
+		defer close(out)
+		for chunk := range rawCh {
+			var finishReason *string
+			if chunk.FinishReason != "" {
+				fr := chunk.FinishReason
+				finishReason = &fr
+			}
+			select {
+			case <-ctx.Done():
+				return
+			case out <- StreamChunk{
+				ID:      "eco-stream-" + requestID,
+				Object:  "chat.completion.chunk",
+				Created: time.Now().Unix(),
+				Model:   chunk.ModelUsed,
+				Choices: []StreamChoice{{
+					Index:        0,
+					Delta:        StreamDelta{Content: chunk.Text},
+					FinishReason: finishReason,
+				}},
+			}:
+			}
+		}
+	}()
+
+	return out, nil
 }
 
 // PreviewRoute runs the routing pipeline without inference.

@@ -19,8 +19,9 @@ export default function UsagePage() {
   const { data, isLoading } = useUsage('daily', from, to);
 
   const summary = data?.summary;
-  const hasData = !isLoading && summary !== undefined && summary.total_requests > 0;
-  const noData = !isLoading && (!summary || summary.total_requests === 0);
+  const totalRequests = summary?.total_requests ?? 0;
+  const hasData = !isLoading && totalRequests > 0;
+  const noData = !isLoading && data !== undefined && totalRequests === 0;
 
   return (
     <div className="space-y-6">
@@ -31,21 +32,21 @@ export default function UsagePage() {
         {[
           {
             label: 'Total Requests',
-            value: isLoading ? '—' : (summary?.total_requests.toLocaleString() ?? '0'),
+            value: isLoading ? '—' : (summary?.total_requests?.toLocaleString() ?? '—'),
           },
           {
             label: 'Total Tokens',
-            value: isLoading ? '—' : (summary?.total_tokens.toLocaleString() ?? '0'),
+            value: isLoading ? '—' : (summary?.total_tokens?.toLocaleString() ?? '—'),
           },
           {
             label: 'Avg Latency',
-            value: isLoading ? '—' : formatLatency(summary?.avg_latency_ms ?? 0),
+            value: isLoading ? '—' : formatLatency(summary?.avg_latency_ms),
           },
           {
             label: 'Cache Hit Rate',
-            value: isLoading
+            value: isLoading || summary == null
               ? '—'
-              : `${((summary?.cache_hit_rate ?? 0) * 100).toFixed(1)}%`,
+              : `${((summary.cache_hit_rate ?? 0) * 100).toFixed(1)}%`,
           },
         ].map(({ label, value }) => (
           <Card key={label}>
@@ -116,16 +117,16 @@ export default function UsagePage() {
                     >
                       <td className="py-2.5 px-4 text-gray-700 dark:text-gray-300">{row.date}</td>
                       <td className="py-2.5 px-4 text-gray-700 dark:text-gray-300">
-                        {row.requests.toLocaleString()}
+                        {(row.requests ?? 0).toLocaleString()}
                       </td>
                       <td className="py-2.5 px-4 text-gray-700 dark:text-gray-300">
-                        {(row.energy_kwh * 1000).toFixed(2)} Wh
+                        {((row.energy_kwh ?? 0) * 1000).toFixed(2)} Wh
                       </td>
                       <td className="py-2.5 px-4 text-gray-700 dark:text-gray-300">
-                        {formatCO2(row.co2e_grams)}
+                        {formatCO2(row.co2e_grams ?? 0)}
                       </td>
                       <td className="py-2.5 px-4 text-right text-gray-700 dark:text-gray-300">
-                        {formatCost(row.cost_usd)}
+                        {formatCost(row.cost_usd ?? 0)}
                       </td>
                     </tr>
                   ))}

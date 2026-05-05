@@ -5,7 +5,9 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
 import { Send, Zap, Leaf, DollarSign, Clock, ChevronDown, ChevronUp } from 'lucide-react';
+import { api } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -36,32 +38,46 @@ interface PlaygroundState {
   clearMessages: () => void;
 }
 
-const usePlayground = create<PlaygroundState>((set) => ({
-  messages: [],
-  lastMeta: null,
-  isLoading: false,
-  apiKey: '',
-  systemPrompt: 'You are a helpful assistant.',
-  settingsOpen: false,
-  setApiKey: (apiKey) => set({ apiKey }),
-  setSystemPrompt: (systemPrompt) => set({ systemPrompt }),
-  toggleSettings: () => set((s) => ({ settingsOpen: !s.settingsOpen })),
-  addUserMessage: (content) =>
-    set((s) => ({ messages: [...s.messages, { role: 'user', content }] })),
-  setAssistantReply: (content, lastMeta) =>
-    set((s) => ({
-      messages: [...s.messages, { role: 'assistant', content }],
-      lastMeta,
+const MAX_PERSISTED_MESSAGES = 50;
+
+const usePlayground = create<PlaygroundState>()(
+  persist(
+    (set) => ({
+      messages: [],
+      lastMeta: null,
       isLoading: false,
-    })),
-  addErrorMessage: (content) =>
-    set((s) => ({
-      messages: [...s.messages, { role: 'assistant', content }],
-      isLoading: false,
-    })),
-  setLoading: (isLoading) => set({ isLoading }),
-  clearMessages: () => set({ messages: [], lastMeta: null }),
-}));
+      apiKey: '',
+      systemPrompt: 'You are a helpful assistant.',
+      settingsOpen: false,
+      setApiKey: (apiKey) => set({ apiKey }),
+      setSystemPrompt: (systemPrompt) => set({ systemPrompt }),
+      toggleSettings: () => set((s) => ({ settingsOpen: !s.settingsOpen })),
+      addUserMessage: (content) =>
+        set((s) => ({ messages: [...s.messages, { role: 'user', content }] })),
+      setAssistantReply: (content, lastMeta) =>
+        set((s) => ({
+          messages: [...s.messages, { role: 'assistant', content }],
+          lastMeta,
+          isLoading: false,
+        })),
+      addErrorMessage: (content) =>
+        set((s) => ({
+          messages: [...s.messages, { role: 'assistant', content }],
+          isLoading: false,
+        })),
+      setLoading: (isLoading) => set({ isLoading }),
+      clearMessages: () => set({ messages: [], lastMeta: null }),
+    }),
+    {
+      name: 'ecollm-playground',
+      partialize: (s) => ({
+        apiKey: s.apiKey,
+        systemPrompt: s.systemPrompt,
+        messages: s.messages.slice(-MAX_PERSISTED_MESSAGES),
+      }),
+    },
+  ),
+);
 
 // ── Form schema ───────────────────────────────────────────────────────────────
 
@@ -175,8 +191,9 @@ export default function PlaygroundPage() {
   }, [messages]);
 
   const onSubmit = useCallback(async (data: FormValues) => {
-    if (!apiKey) {
-      alert('Enter an API key in the settings panel above.');
+    const token = apiKey || api.getToken();
+    if (!token) {
+      alert('Session expired. Please refresh the page and log in again.');
       return;
     }
 
@@ -193,7 +210,7 @@ export default function PlaygroundPage() {
         `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'}/v1/chat/completions`,
         {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
           body: JSON.stringify({
             messages: history,
             max_tokens: data.maxTokens,
@@ -242,12 +259,14 @@ export default function PlaygroundPage() {
           {settingsOpen && (
             <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div className="sm:col-span-2">
-                <label className="mb-1 block text-xs text-gray-500">API Key</label>
+                <label className="mb-1 block text-xs text-gray-500">
+                  API Key <span className="text-gray-400">(optional — uses your session by default)</span>
+                </label>
                 <input
                   type="password"
                   value={apiKey}
                   onChange={(e) => setApiKey(e.target.value)}
-                  placeholder="ek_live_..."
+                  placeholder="ek_live_... (leave blank to use your session)"
                   className="w-full rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm dark:border-gray-600 dark:bg-gray-800"
                 />
               </div>

@@ -20,8 +20,8 @@ import {
 
 const schema = z.object({
   name:             z.string().min(2, 'Name must be at least 2 characters'),
-  email:            z.string().email('Invalid email'),
-  password:         z.string().min(8, 'Password must be at least 8 characters'),
+  email:            z.string().min(1, 'Email is required'),
+  password:         z.string().min(1, 'Password is required').min(8, 'Password must be at least 8 characters'),
   confirm_password: z.string(),
   org_name:         z.string().min(2, 'Organisation name must be at least 2 characters'),
 }).refine((data) => data.password === data.confirm_password, {
@@ -45,7 +45,7 @@ function RegisterInner() {
     handleSubmit,
     watch,
     formState: { errors, isSubmitting },
-  } = useForm<FormValues>({ resolver: zodResolver(schema), reValidateMode: 'onBlur' });
+  } = useForm<FormValues>({ resolver: zodResolver(schema), mode: 'onBlur', reValidateMode: 'onChange' });
 
   const watchedPassword        = watch('password', '');
   const watchedConfirmPassword = watch('confirm_password', '');
@@ -71,7 +71,7 @@ function RegisterInner() {
       <MobileLogo className="mb-3" />
 
       <h1 className="mb-0.5 text-2xl font-bold text-eco-50 text-center">Create account</h1>
-      <p className="mb-3 text-sm text-eco-400 text-center">Set up your workspace in seconds</p>
+      <p className="mb-3 text-sm text-eco-300 text-center">Set up your workspace in seconds</p>
 
       {/* OAuth error banner */}
       {oauthError && <OAuthErrorBanner errorKey={oauthError} className="mb-3" />}

@@ -44,14 +44,11 @@ class ApiClient {
   }
 
   async request<T>(path: string, options: RequestInit = {}): Promise<T> {
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
-      ...((options.headers as Record<string, string>) || {}),
-    };
-
-    if (this.token) {
-      headers['Authorization'] = `Bearer ${this.token}`;
-    }
+    const merged = new Headers(options.headers);
+    if (!merged.has('Content-Type')) merged.set('Content-Type', 'application/json');
+    if (this.token) merged.set('Authorization', `Bearer ${this.token}`);
+    const headers: Record<string, string> = {};
+    merged.forEach((v, k) => { headers[k] = v; });
 
     const res = await fetch(`${this.baseUrl}${path}`, { ...options, headers });
 
