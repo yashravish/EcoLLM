@@ -91,34 +91,34 @@ func (h *OAuthHandler) handleCallback(
 	// Validate and consume the CSRF state.
 	stateKey := "oauth_state:" + state
 	if h.redis.Exists(c.UserContext(), stateKey).Val() == 0 {
-		return c.Redirect(h.frontendURL+"/auth/callback?error=oauth_failed", fiber.StatusTemporaryRedirect)
+		return c.Redirect(h.frontendURL+"/callback?error=oauth_failed", fiber.StatusTemporaryRedirect)
 	}
 	h.redis.Del(c.UserContext(), stateKey)
 
 	// Exchange authorisation code for access token.
 	token, err := conf.Exchange(c.UserContext(), code)
 	if err != nil {
-		return c.Redirect(h.frontendURL+"/auth/callback?error=oauth_failed", fiber.StatusTemporaryRedirect)
+		return c.Redirect(h.frontendURL+"/callback?error=oauth_failed", fiber.StatusTemporaryRedirect)
 	}
 
 	// Fetch provider profile.
 	providerID, email, name, err := fetch(c.UserContext(), token, conf)
 	if err != nil {
-		return c.Redirect(h.frontendURL+"/auth/callback?error=oauth_failed", fiber.StatusTemporaryRedirect)
+		return c.Redirect(h.frontendURL+"/callback?error=oauth_failed", fiber.StatusTemporaryRedirect)
 	}
 
 	if email == "" {
-		return c.Redirect(h.frontendURL+"/auth/callback?error=oauth_no_email", fiber.StatusTemporaryRedirect)
+		return c.Redirect(h.frontendURL+"/callback?error=oauth_no_email", fiber.StatusTemporaryRedirect)
 	}
 
 	// Account-linking and JWT issuance.
 	jwt, nextURL, err := h.svc.HandleOAuthCallback(c.UserContext(), provider, providerID, email, name)
 	if err != nil {
-		return c.Redirect(h.frontendURL+"/auth/callback?error=oauth_failed", fiber.StatusTemporaryRedirect)
+		return c.Redirect(h.frontendURL+"/callback?error=oauth_failed", fiber.StatusTemporaryRedirect)
 	}
 
 	return c.Redirect(
-		h.frontendURL+"/auth/callback?token="+jwt+"&next="+nextURL,
+		h.frontendURL+"/callback?token="+jwt+"&next="+nextURL,
 		fiber.StatusTemporaryRedirect,
 	)
 }

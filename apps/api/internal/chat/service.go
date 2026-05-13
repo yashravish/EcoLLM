@@ -185,7 +185,8 @@ func (s *Service) Complete(ctx context.Context, orgID, requestID string, req *Co
 		infMsgs[i] = inference.InferenceMessage{Role: m.Role, Content: m.Content}
 	}
 
-	// Run inference (with fallback if enabled).
+	// Run inference. When EnableFallback is true (the default), the gateway
+	// automatically retries on the decision's fallback model if the primary fails.
 	var result *inference.InferenceResult
 	var err error
 	if s.cfg.EnableFallback {
@@ -214,7 +215,9 @@ func (s *Service) Complete(ctx context.Context, orgID, requestID string, req *Co
 		MeasuredEnergyWh: result.MeasuredEnergyWh,
 	})
 	energyKwh := measurement.TotalEnergyKwh
-	gridIntensity, gridRegion := s.estimator.GridIntensity()
+	gridData := s.estimator.CurrentGridData()
+	gridIntensity := gridData.IntensityGCO2
+	gridRegion := gridData.Region
 	co2eGrams := energyKwh * gridIntensity * 1000
 
 	gpt4CO2e := gpt4EnergyKwh * gridIntensity * 1000
@@ -300,7 +303,7 @@ func (s *Service) Complete(ctx context.Context, orgID, requestID string, req *Co
 	}
 
 	// Persist request record + energy + carbon asynchronously.
-	go s.persistRequest(orgID, requestID, userPrompt, optimized, decision, result, measurement, gridIntensity, gridRegion, co2eGrams, savingsPct, latencyMs)
+	go s.persistRequest(orgID, requestID, userPrompt, optimized, decision, result, measurement, gridIntensity, gridRegion, gridData.DataSource, co2eGrams, savingsPct, latencyMs)
 
 	log.Info().
 		Str("request_id", requestID).
@@ -351,10 +354,15 @@ func (s *Service) CompleteStream(ctx context.Context, orgID, requestID string, r
 		return nil, err
 	}
 
+	start := time.Now()
 	out := make(chan StreamChunk, 64)
 	go func() {
 		defer close(out)
+		lastModel := decision.Model
 		for chunk := range rawCh {
+			if chunk.ModelUsed != "" {
+				lastModel = chunk.ModelUsed
+			}
 			var finishReason *string
 			if chunk.FinishReason != "" {
 				fr := chunk.FinishReason
@@ -375,6 +383,65 @@ func (s *Service) CompleteStream(ctx context.Context, orgID, requestID string, r
 				}},
 			}:
 			}
+		}
+
+		// Emit a final metadata-only chunk so the frontend can display EcoLLM routing info.
+		latencyMs := int(time.Since(start).Milliseconds())
+		usedFallback := lastModel != "" && lastModel != decision.Model
+		measurement := carbon.CalculateEnergy(carbon.EnergyInput{
+			ModelName:   lastModel,
+			InferenceMs: int64(latencyMs),
+			BatchSize:   1,
+		})
+		energyKwh := measurement.TotalEnergyKwh
+		gridIntensity, gridRegion := s.estimator.GridIntensity()
+		co2eGrams := energyKwh * gridIntensity * 1000
+		gpt4CO2e := gpt4EnergyKwh * gridIntensity * 1000
+		savingsPct := 0.0
+		if gpt4CO2e > 0 {
+			savingsPct = (gpt4CO2e - co2eGrams) / gpt4CO2e * 100
+		}
+		fallbackModel := ""
+		if usedFallback {
+			fallbackModel = decision.Fallback
+		}
+
+		select {
+		case <-ctx.Done():
+		case out <- StreamChunk{
+			ID:      "eco-stream-" + requestID,
+			Object:  "chat.completion.chunk",
+			Created: time.Now().Unix(),
+			Model:   lastModel,
+			Choices: []StreamChoice{},
+			EcoLLM: &EcoLLMMetadata{
+				Route: RouteMetadata{
+					TaskType:      string(decision.TaskType),
+					Complexity:    decision.Complexity,
+					ModelSelected: decision.Model,
+					FallbackModel: fallbackModel,
+					RoutingScore:  decision.Score,
+					Confidence:    decision.Confidence,
+					UsedFallback:  usedFallback,
+				},
+				Energy: EnergyMetadata{
+					InferenceEnergyKwh:  measurement.InferenceEnergyWh / 1000.0,
+					TotalEnergyKwh:      energyKwh,
+					CO2eGrams:           co2eGrams,
+					GridCarbonIntensity: gridIntensity,
+					GridRegion:          gridRegion,
+					EnergySource:        measurement.EnergySource,
+				},
+				Cost: CostMetadata{
+					InferenceCostUSD:     decision.EstimatedCost,
+					TotalCostUSD:         decision.EstimatedCost,
+					SavingsVsGPT4Percent: savingsPct,
+				},
+				Performance: PerformanceMetadata{
+					LatencyMs: latencyMs,
+				},
+			},
+		}:
 		}
 	}()
 
@@ -500,6 +567,7 @@ func (s *Service) persistRequest(
 	measurement carbon.EnergyMeasurement,
 	gridIntensity float64,
 	gridRegion string,
+	gridDataSource string,
 	co2eGrams float64,
 	savingsPct float64,
 	latencyMs int,
@@ -548,7 +616,7 @@ func (s *Service) persistRequest(
 			RequestID:           rec.ID,
 			GridRegion:          gridRegion,
 			GridCarbonIntensity: gridIntensity,
-			CarbonDataSource:    "static_fallback",
+			CarbonDataSource:    gridDataSource,
 			CO2eGrams:           co2eGrams,
 			GPT4EquivalentCO2e:  gpt4CO2e,
 			SavingsPercent:      savingsPct,

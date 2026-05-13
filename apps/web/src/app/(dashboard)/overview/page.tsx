@@ -34,7 +34,6 @@ export default function OverviewPage() {
         <p className="mt-0.5 text-xs text-eco-400 font-mono">Carbon-aware LLM inference — current month</p>
       </div>
 
-      {/* Metric Cards */}
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <MetricCard
           label="Total Requests"
@@ -67,7 +66,6 @@ export default function OverviewPage() {
         />
       </div>
 
-      {/* Charts Row */}
       <div className="grid gap-4 lg:grid-cols-3">
         <div className="lg:col-span-2">
           <UsageChart
@@ -83,7 +81,6 @@ export default function OverviewPage() {
         />
       </div>
 
-      {/* Recent Requests */}
       <Card>
         <CardHeader className="pb-2">
           <CardTitle className="text-sm font-medium">Recent Requests</CardTitle>

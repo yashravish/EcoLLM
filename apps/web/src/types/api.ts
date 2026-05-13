@@ -58,28 +58,32 @@ export interface EcoLLMMetadata {
 
 // ===== Usage =====
 
+export interface UsageSummary {
+  total_requests: number;
+  total_tokens: number;
+  total_energy_kwh: number;
+  total_co2e_grams: number;
+  total_cost_usd: number;
+  cache_hit_rate: number;
+  avg_latency_ms: number;
+}
+
+export interface UsageDailyBreakdown {
+  date: string;
+  requests: number;
+  energy_kwh: number;
+  co2e_grams: number;
+  cost_usd: number;
+}
+
 export interface UsageResponse {
   org_id: string;
   period: string;
   from: string;
   to: string;
-  summary: {
-    total_requests: number;
-    total_tokens: number;
-    total_energy_kwh: number;
-    total_co2e_grams: number;
-    total_cost_usd: number;
-    cache_hit_rate: number;
-    avg_latency_ms: number;
-  };
+  summary: UsageSummary;
   model_distribution: Record<string, number>;
-  daily_breakdown: Array<{
-    date: string;
-    requests: number;
-    energy_kwh: number;
-    co2e_grams: number;
-    cost_usd: number;
-  }>;
+  daily_breakdown: UsageDailyBreakdown[];
 }
 
 // ===== Models =====
@@ -144,6 +148,21 @@ export interface RequestFilters {
 
 // ===== Carbon =====
 
+export interface CarbonDailyBreakdown {
+  date: string;
+  co2e_grams: number;
+  energy_kwh: number;
+  gpt4_equivalent_co2e_grams: number;
+}
+
+export interface ModelEnergyBreakdownEntry {
+  model: string;
+  energy_kwh: number;
+  co2e_grams: number;
+  request_count: number;
+  percentage_of_traffic: number;
+}
+
 export interface CarbonResponse {
   period: string;
   total_co2e_grams: number;
@@ -152,19 +171,8 @@ export interface CarbonResponse {
   savings_percent: number;
   grid_region: string;
   grid_carbon_intensity: number;
-  daily_breakdown: Array<{
-    date: string;
-    co2e_grams: number;
-    energy_kwh: number;
-    gpt4_equivalent_co2e_grams: number;
-  }>;
-  model_energy_breakdown: Array<{
-    model: string;
-    energy_kwh: number;
-    co2e_grams: number;
-    request_count: number;
-    percentage_of_traffic: number;
-  }>;
+  daily_breakdown: CarbonDailyBreakdown[];
+  model_energy_breakdown: ModelEnergyBreakdownEntry[];
 }
 
 // ===== API Keys =====
@@ -252,7 +260,7 @@ export interface RegisterRequest {
   name: string;
   email: string;
   password: string;
-  org_name: string;
+  org_name?: string;
 }
 
 export interface RegisterResponse {

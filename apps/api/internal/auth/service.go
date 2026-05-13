@@ -141,9 +141,8 @@ func (s *Service) Logout(ctx context.Context, jti string) error {
 	return s.redis.Del(ctx, "session:"+jti).Err()
 }
 
-// RegisterInput carries the fields needed to create a new org + admin user.
+// RegisterInput carries the fields needed to create a new user (org is auto-generated).
 type RegisterInput struct {
-	OrgName  string
 	Email    string
 	Password string
 	Name     string
@@ -176,8 +175,12 @@ func (s *Service) Register(ctx context.Context, in RegisterInput) (*RegisterResp
 		Scopes:    []string{"inference:write", "usage:read"},
 	}
 
+	orgName := in.Name + "'s Workspace"
+	if in.Name == "" {
+		orgName = "My Workspace"
+	}
 	org, user, err := s.repo.CreateOrgAndUser(ctx,
-		OrgInput{Name: in.OrgName, Slug: slugify(in.OrgName), Plan: "free"},
+		OrgInput{Name: orgName, Slug: slugify(orgName), Plan: "free"},
 		UserInput{Email: in.Email, PasswordHash: string(pwHash), Role: "admin", Name: in.Name},
 		apiKey,
 	)
@@ -421,21 +424,49 @@ func (s *Service) HandleOAuthCallback(ctx context.Context, provider, providerID,
 		return "", "", err
 	}
 
-	orgIDStr := ""
-	if user.OrgID != uuid.Nil {
-		orgIDStr = user.OrgID.String()
+	if user.OrgID == uuid.Nil {
+		orgName := user.Name + "'s Workspace"
+		if user.Name == "" {
+			orgName = "My Workspace"
+		}
+		org, err := s.repo.CreateOrgForUser(ctx, user.ID, OrgInput{
+			Name: orgName,
+			Slug: slugify(orgName),
+			Plan: "free",
+		})
+		if err != nil {
+			return "", "", fmt.Errorf("auto-create org: %w", err)
+		}
+		user.OrgID = org.ID
+		signed, jti, err = s.issueJWT(user)
+		if err != nil {
+			return "", "", err
+		}
 	}
+
 	sessionData, _ := json.Marshal(map[string]string{
 		"user_id": user.ID.String(),
-		"org_id":  orgIDStr,
+		"org_id":  user.OrgID.String(),
 		"role":    user.Role,
 	})
 	s.redis.Set(ctx, "session:"+jti, sessionData, sessionTTL)
 
-	if user.OrgID == uuid.Nil {
-		return signed, "/onboarding/organisation", nil
+	return signed, "/playground", nil
+}
+
+// DeleteMe deletes the calling user's account and invalidates their session.
+func (s *Service) DeleteMe(ctx context.Context, userID, jti string) error {
+	uid, err := uuid.Parse(userID)
+	if err != nil {
+		return errors.New("invalid user id")
 	}
-	return signed, "/overview", nil
+	if err := s.repo.DeleteUser(ctx, uid); err != nil {
+		return fmt.Errorf("delete user: %w", err)
+	}
+	if jti != "" {
+		s.redis.Del(ctx, "session:"+jti)
+	}
+	return nil
 }
 
 // RegisterOrg creates an org for an org-less OAuth user and assigns it to them.

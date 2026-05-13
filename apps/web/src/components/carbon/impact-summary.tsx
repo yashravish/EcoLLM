@@ -36,16 +36,16 @@ export function ImpactSummary({ totalCO2eSavedGrams, loading = false }: ImpactSu
     <Card aria-label={ariaLabel}>
       <CardContent className="pt-8 pb-8">
         <div className="flex flex-col items-center gap-2 text-center">
-          <div className="flex items-center gap-2 text-green-600 dark:text-green-400">
+          <div className="flex items-center gap-2 text-accent">
             <TreePine className="h-6 w-6" aria-hidden="true" />
-            <span className="text-sm font-medium uppercase tracking-wide">Carbon Avoided</span>
+            <span className="font-mono text-xs font-medium uppercase tracking-widest">Carbon Avoided</span>
           </div>
-          <p className="text-4xl font-bold tabular-nums text-green-700 dark:text-green-400">
+          <p className="font-mono text-4xl font-bold tabular-nums text-accent">
             {label}
           </p>
-          <p className="text-sm text-gray-500 dark:text-gray-400">
+          <p className="font-mono text-xs text-eco-500">
             Equivalent to{' '}
-            <span className="font-semibold text-gray-900 dark:text-white">
+            <span className="font-semibold text-eco-200">
               {treesLabel}
             </span>{' '}
             absorbing CO₂ for a day

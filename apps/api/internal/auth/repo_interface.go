@@ -25,4 +25,5 @@ type RepositoryI interface {
 	CreateAPIKey(ctx context.Context, k *APIKey) error
 	RevokeAPIKey(ctx context.Context, keyID, orgID uuid.UUID) error
 	RemoveMember(ctx context.Context, orgID, userID uuid.UUID) error
+	DeleteUser(ctx context.Context, userID uuid.UUID) error
 }

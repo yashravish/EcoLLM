@@ -43,7 +43,7 @@ type CarbonEstimate struct {
 	EnergyMeasurementID string // empty → NULL in DB
 	GridRegion          string
 	GridCarbonIntensity float64 // gCO2/kWh
-	CarbonDataSource    string  // "electricity_maps" | "static_fallback"
+	CarbonDataSource    string  // "electricity_maps" | "static"
 	CO2eGrams           float64
 	GPT4EquivalentCO2e  float64
 	SavingsPercent      float64

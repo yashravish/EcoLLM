@@ -35,7 +35,6 @@ type User struct {
 	CreatedAt    time.Time
 }
 
-// Organization represents a row from the organizations table.
 type Organization struct {
 	ID                uuid.UUID `json:"id"`
 	Name              string    `json:"name"`
@@ -48,7 +47,6 @@ type Organization struct {
 	CreatedAt         time.Time `json:"created_at"`
 }
 
-// Member is the public representation of a user within an org.
 type Member struct {
 	ID        uuid.UUID `json:"id"`
 	Email     string    `json:"email"`
@@ -57,7 +55,6 @@ type Member struct {
 	CreatedAt time.Time `json:"created_at"`
 }
 
-// APIKey represents a row from the api_keys table.
 type APIKey struct {
 	ID                uuid.UUID
 	OrgID             uuid.UUID
@@ -73,14 +70,12 @@ type APIKey struct {
 	CreatedAt         time.Time
 }
 
-// OrgInput carries fields for creating a new organization.
 type OrgInput struct {
 	Name string
 	Slug string
 	Plan string
 }
 
-// UserInput carries fields for creating a new user.
 type UserInput struct {
 	Email        string
 	PasswordHash string
@@ -165,7 +160,6 @@ func (r *Repository) FindOrgByID(ctx context.Context, orgID uuid.UUID) (*Organiz
 	return o, nil
 }
 
-// FindAPIKeyByPrefix returns the API key record matching a given prefix.
 func (r *Repository) FindAPIKeyByPrefix(ctx context.Context, prefix string) (*APIKey, error) {
 	k := &APIKey{}
 	err := r.db.QueryRow(ctx,
@@ -185,7 +179,6 @@ func (r *Repository) FindAPIKeyByPrefix(ctx context.Context, prefix string) (*AP
 	return k, nil
 }
 
-// TouchAPIKeyLastUsed updates the last_used_at timestamp for an API key.
 func (r *Repository) TouchAPIKeyLastUsed(ctx context.Context, keyID uuid.UUID) error {
 	_, err := r.db.Exec(ctx,
 		`UPDATE api_keys SET last_used_at = now() WHERE id = $1`,
@@ -194,7 +187,6 @@ func (r *Repository) TouchAPIKeyLastUsed(ctx context.Context, keyID uuid.UUID) e
 	return err
 }
 
-// CreateAPIKey inserts a new API key record.
 func (r *Repository) CreateAPIKey(ctx context.Context, k *APIKey) error {
 	_, err := r.db.Exec(ctx,
 		`INSERT INTO api_keys (id, org_id, created_by, name, key_hash, key_prefix, scopes, expires_at)
@@ -262,7 +254,6 @@ func (r *Repository) CreateOrgAndUser(ctx context.Context, org OrgInput, user Us
 	return &o, &u, nil
 }
 
-// UpdateOrg updates mutable org fields.
 func (r *Repository) UpdateOrg(ctx context.Context, orgID uuid.UUID, name string, qualityThreshold float32, energyBudgetKwh *float32) error {
 	_, err := r.db.Exec(ctx,
 		`UPDATE organizations
@@ -275,7 +266,6 @@ func (r *Repository) UpdateOrg(ctx context.Context, orgID uuid.UUID, name string
 	return err
 }
 
-// ListMembers returns all active users in an org.
 func (r *Repository) ListMembers(ctx context.Context, orgID uuid.UUID) ([]Member, error) {
 	rows, err := r.db.Query(ctx,
 		`SELECT id, email, COALESCE(name,''), role, created_at
@@ -299,7 +289,6 @@ func (r *Repository) ListMembers(ctx context.Context, orgID uuid.UUID) ([]Member
 	return members, rows.Err()
 }
 
-// InviteMember creates a new user in the org.
 func (r *Repository) InviteMember(ctx context.Context, orgID uuid.UUID, email, passwordHash, name, role string) (*User, error) {
 	u := &User{}
 	err := r.db.QueryRow(ctx,
@@ -314,7 +303,6 @@ func (r *Repository) InviteMember(ctx context.Context, orgID uuid.UUID, email, p
 	return u, nil
 }
 
-// UpdateMemberRole changes a member's role within an org.
 func (r *Repository) UpdateMemberRole(ctx context.Context, orgID, userID uuid.UUID, role string) error {
 	_, err := r.db.Exec(ctx,
 		`UPDATE users SET role = $3 WHERE id = $2 AND org_id = $1 AND revoked_at IS NULL`,
@@ -488,4 +476,17 @@ func (r *Repository) CreateOrgForUser(ctx context.Context, userID uuid.UUID, org
 		return nil, err
 	}
 	return &o, nil
+}
+
+// DeleteUser hard-deletes a user row. Cascades to api_keys, oauth_accounts, etc.
+// via ON DELETE CASCADE constraints. The user's org is left intact.
+func (r *Repository) DeleteUser(ctx context.Context, userID uuid.UUID) error {
+	tag, err := r.db.Exec(ctx, `DELETE FROM users WHERE id = $1`, userID)
+	if err != nil {
+		return fmt.Errorf("delete user: %w", err)
+	}
+	if tag.RowsAffected() == 0 {
+		return pgx.ErrNoRows
+	}
+	return nil
 }

@@ -14,15 +14,10 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { LoadingSkeleton } from '@/components/shared/loading-skeleton';
-
-interface DataPoint {
-  date: string;
-  requests: number;
-  energy_kwh: number;
-}
+import type { UsageDailyBreakdown } from '@/types';
 
 interface UsageChartProps {
-  data: DataPoint[];
+  data: UsageDailyBreakdown[];
   period: '7d' | '30d';
   onPeriodChange: (period: '7d' | '30d') => void;
   loading?: boolean;
@@ -51,7 +46,7 @@ export function UsageChart({ data, period, onPeriodChange, loading = false }: Us
         {loading ? (
           <LoadingSkeleton variant="chart" />
         ) : data.length === 0 ? (
-          <div className="flex h-64 items-center justify-center text-sm text-gray-400">
+          <div className="flex h-64 items-center justify-center font-mono text-xs text-eco-500">
             No data for this period
           </div>
         ) : (

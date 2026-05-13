@@ -12,7 +12,7 @@ export function Table({ className, children, ...props }: React.HTMLAttributes<HT
 
 export function TableCaption({ className, children, ...props }: React.HTMLAttributes<HTMLElement>) {
   return (
-    <caption className={cn('mt-4 text-sm text-gray-500 dark:text-gray-400', className)} {...props}>
+    <caption className={cn('mt-4 font-mono text-xs text-eco-500', className)} {...props}>
       {children}
     </caption>
   );
@@ -38,7 +38,7 @@ export function TableRow({ className, children, ...props }: React.HTMLAttributes
   return (
     <tr
       className={cn(
-        'border-b border-gray-100 transition-colors hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-800/50',
+        'border-b border-eco-700 transition-colors hover:bg-eco-800/40',
         className,
       )}
       {...props}
@@ -52,7 +52,7 @@ export function TableHead({ className, children, ...props }: React.ThHTMLAttribu
   return (
     <th
       className={cn(
-        'h-10 px-4 text-left align-middle text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400',
+        'h-10 px-4 text-left align-middle font-mono text-[10px] font-medium uppercase tracking-widest text-eco-500',
         className,
       )}
       {...props}
@@ -64,7 +64,7 @@ export function TableHead({ className, children, ...props }: React.ThHTMLAttribu
 
 export function TableCell({ className, children, ...props }: React.TdHTMLAttributes<HTMLTableCellElement>) {
   return (
-    <td className={cn('px-4 py-3 align-middle text-gray-700 dark:text-gray-300', className)} {...props}>
+    <td className={cn('px-4 py-3 align-middle text-eco-200', className)} {...props}>
       {children}
     </td>
   );

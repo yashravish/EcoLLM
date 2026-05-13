@@ -13,17 +13,10 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { LoadingSkeleton } from '@/components/shared/loading-skeleton';
 import { formatEnergy } from '@/lib/utils';
-
-interface ModelEnergyEntry {
-  model: string;
-  energy_kwh: number;
-  co2e_grams: number;
-  request_count: number;
-  percentage_of_traffic: number;
-}
+import type { ModelEnergyBreakdownEntry } from '@/types';
 
 interface ModelEnergyBreakdownProps {
-  data: ModelEnergyEntry[];
+  data: ModelEnergyBreakdownEntry[];
   loading?: boolean;
 }
 
@@ -96,7 +89,7 @@ export function ModelEnergyBreakdown({ data, loading = false }: ModelEnergyBreak
                       fontSize: '12px',
                     }}
                     formatter={(value: number, _name: string, props) => {
-                      const item = props.payload as ModelEnergyEntry & { name: string };
+                      const item = props.payload as ModelEnergyBreakdownEntry & { name: string };
                       return [
                         `${formatEnergy(value)} · ${item.percentage_of_traffic.toFixed(1)}% traffic`,
                         'Energy',

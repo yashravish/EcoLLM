@@ -55,7 +55,7 @@ export default function BillingPage() {
         <Card>
           <CardContent className="pt-6">
             {isLoading ? (
-              <LoadingSkeleton variant="stat" />
+              <LoadingSkeleton variant="card" />
             ) : (
               <>
                 <p className="text-2xl font-bold text-gray-900 dark:text-white">
@@ -70,7 +70,7 @@ export default function BillingPage() {
         <Card>
           <CardContent className="pt-6">
             {isLoading ? (
-              <LoadingSkeleton variant="stat" />
+              <LoadingSkeleton variant="card" />
             ) : (
               <>
                 <p className="text-2xl font-bold text-gray-900 dark:text-white">

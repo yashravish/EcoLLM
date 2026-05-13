@@ -91,7 +91,7 @@ export function DialogContent({
       aria-describedby={describedBy}
       className={cn(
         'fixed left-1/2 top-1/2 z-50 w-full max-w-lg -translate-x-1/2 -translate-y-1/2',
-        'rounded-lg bg-white p-6 shadow-xl dark:bg-gray-900',
+        'rounded-lg border border-eco-600 bg-eco-800 p-6 shadow-xl shadow-black/60',
         'motion-safe:animate-in motion-safe:fade-in motion-safe:zoom-in-95',
         className,
       )}
@@ -113,7 +113,7 @@ export function DialogTitle({
   return (
     <h2
       id={id}
-      className={cn('text-lg font-semibold text-gray-900 dark:text-white', className)}
+      className={cn('font-mono text-base font-semibold text-eco-50', className)}
     >
       {children}
     </h2>
@@ -130,7 +130,7 @@ export function DialogDescription({
   className?: string;
 }) {
   return (
-    <p id={id} className={cn('mt-1 text-sm text-gray-500 dark:text-gray-400', className)}>
+    <p id={id} className={cn('mt-1 text-sm text-eco-400', className)}>
       {children}
     </p>
   );

@@ -3,9 +3,9 @@
 import { useState } from 'react';
 import { Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { formatRelativeTime } from '@/lib/utils';
+import { cn } from '@/lib/utils';
 import type { ApiKey } from '@/types';
 
 interface ApiKeyCardProps {
@@ -20,49 +20,60 @@ export function ApiKeyCard({ apiKey, onRevoke, revoking = false }: ApiKeyCardPro
 
   return (
     <>
-      <div className="flex items-center justify-between rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-900">
+      <div className={cn(
+        'group flex items-center gap-4 rounded-lg border px-5 py-4 transition-colors',
+        isRevoked
+          ? 'border-eco-700 bg-eco-800/30 opacity-50'
+          : 'border-eco-600 bg-eco-800 hover:border-eco-500 hover:bg-eco-750',
+      )}>
+        {/* Status dot */}
+        <div className={cn(
+          'h-2 w-2 flex-shrink-0 rounded-full',
+          isRevoked ? 'bg-eco-500' : 'bg-accent shadow-[0_0_6px_rgba(0,232,122,0.5)]',
+        )} />
+
+        {/* Main content */}
         <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
-            <span className="text-sm font-medium text-gray-900 dark:text-white">{apiKey.name}</span>
-            {isRevoked ? (
-              <Badge variant="danger">Revoked</Badge>
-            ) : (
-              <Badge variant="success">Active</Badge>
-            )}
+          <div className="flex items-center gap-3">
+            <span className="text-sm font-semibold text-eco-50">{apiKey.name}</span>
+            <code className="font-mono text-xs text-eco-400">{apiKey.key_prefix}••••••••</code>
+            {isRevoked && <span className="text-xs text-eco-400">Revoked</span>}
           </div>
-          <p className="mt-0.5 font-mono text-xs text-gray-500 dark:text-gray-400">
-            {apiKey.key_prefix}••••••••
-          </p>
-          <div className="mt-1.5 flex flex-wrap gap-1">
+          <div className="mt-2 flex flex-wrap items-center gap-x-2.5 gap-y-1">
             {apiKey.scopes.map((scope) => (
-              <Badge key={scope} variant="outline" className="text-xs">
+              <span
+                key={scope}
+                className="rounded border border-eco-600 bg-eco-900 px-1.5 py-0.5 font-mono text-[11px] text-eco-300"
+              >
                 {scope}
-              </Badge>
+              </span>
             ))}
-          </div>
-          <div className="mt-1.5 flex gap-4 text-xs text-gray-400 dark:text-gray-500">
-            <span>Created {formatRelativeTime(apiKey.created_at)}</span>
-            {apiKey.last_used_at ? (
-              <span>Last used {formatRelativeTime(apiKey.last_used_at)}</span>
-            ) : (
-              <span>Never used</span>
-            )}
+            <span className="text-eco-600 select-none">·</span>
+            <span className="text-xs text-eco-400">Created {formatRelativeTime(apiKey.created_at)}</span>
+            <span className="text-eco-600 select-none">·</span>
+            <span className="text-xs text-eco-400">
+              {apiKey.last_used_at ? `Last used ${formatRelativeTime(apiKey.last_used_at)}` : 'Never used'}
+            </span>
             {apiKey.expires_at && (
-              <span>Expires {new Date(apiKey.expires_at).toLocaleDateString()}</span>
+              <>
+                <span className="text-eco-600 select-none">·</span>
+                <span className="text-xs text-eco-400">Expires {new Date(apiKey.expires_at).toLocaleDateString()}</span>
+              </>
             )}
           </div>
         </div>
 
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => setConfirmOpen(true)}
-          disabled={isRevoked || revoking}
-          aria-label={`Revoke API key ${apiKey.name}`}
-          className="ml-4 flex-shrink-0 text-red-500 hover:bg-red-50 hover:text-red-700 disabled:opacity-40 dark:hover:bg-red-900/20"
-        >
-          <Trash2 className="h-4 w-4" aria-hidden="true" />
-        </Button>
+        {/* Revoke */}
+        {!isRevoked && (
+          <button
+            onClick={() => setConfirmOpen(true)}
+            disabled={revoking}
+            aria-label={`Revoke ${apiKey.name}`}
+            className="flex-shrink-0 rounded p-1.5 text-eco-500 opacity-0 transition-all hover:bg-red-500/10 hover:text-red-400 group-hover:opacity-100 disabled:pointer-events-none focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-accent"
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+          </button>
+        )}
       </div>
 
       <Dialog open={confirmOpen} onClose={() => setConfirmOpen(false)}>
@@ -77,16 +88,11 @@ export function ApiKeyCard({ apiKey, onRevoke, revoking = false }: ApiKeyCardPro
             this key will immediately lose access. This cannot be undone.
           </DialogDescription>
           <DialogFooter>
-            <Button variant="secondary" onClick={() => setConfirmOpen(false)}>
-              Cancel
-            </Button>
+            <Button variant="secondary" onClick={() => setConfirmOpen(false)}>Cancel</Button>
             <Button
               variant="destructive"
               loading={revoking}
-              onClick={() => {
-                onRevoke(apiKey.id);
-                setConfirmOpen(false);
-              }}
+              onClick={() => { onRevoke(apiKey.id); setConfirmOpen(false); }}
             >
               Revoke Key
             </Button>

@@ -216,7 +216,7 @@ func main() {
 		return c.JSON(fiber.Map{"status": "ready"})
 	})
 
-	// /me (root-level) — mirrors /auth/me; here for frontend compatibility.
+	// /me (root-level) — used by the dashboard (GET /me is the canonical user-info endpoint).
 	app.Get("/me", middleware.JWTAuth(cfg.JWTSecret, redisClient), authHandler.Me)
 
 	// ── Public Inference API (/v1) ────────────────────────────────────────────
@@ -250,6 +250,7 @@ func main() {
 	authGroup.Post("/login", authHandler.Login)
 	authGroup.Post("/logout", middleware.JWTAuth(cfg.JWTSecret, redisClient), authHandler.Logout)
 	authGroup.Get("/me", middleware.JWTAuth(cfg.JWTSecret, redisClient), authHandler.Me)
+	authGroup.Delete("/me", middleware.JWTAuth(cfg.JWTSecret, redisClient), authHandler.DeleteMe)
 	// OAuth — no JWT middleware; the callback issues the JWT itself.
 	authGroup.Get("/github/begin", oauthHandler.BeginGitHub)
 	authGroup.Get("/github/callback", oauthHandler.CallbackGitHub)

@@ -12,15 +12,10 @@ import {
 } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { LoadingSkeleton } from '@/components/shared/loading-skeleton';
-
-interface DataPoint {
-  date: string;
-  co2e_grams: number;
-  gpt4_equivalent_co2e_grams: number;
-}
+import type { CarbonDailyBreakdown } from '@/types';
 
 interface CarbonChartProps {
-  data: DataPoint[];
+  data: CarbonDailyBreakdown[];
   loading?: boolean;
 }
 

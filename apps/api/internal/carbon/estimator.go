@@ -75,6 +75,20 @@ func (e *Estimator) GridIntensity() (float64, string) {
 	return GridIntensityForRegion(e.gridRegion), e.gridRegion
 }
 
+// CurrentGridData returns the full GridData snapshot used for carbon calculations.
+// Callers that need the data source string (e.g. for persistence) should use this
+// instead of GridIntensity to avoid a second resolution call.
+func (e *Estimator) CurrentGridData() GridData {
+	if e.gridSvc != nil {
+		return e.gridSvc.GetIntensity(context.Background(), e.gridRegion)
+	}
+	return GridData{
+		Region:        e.gridRegion,
+		IntensityGCO2: GridIntensityForRegion(e.gridRegion),
+		DataSource:    "static",
+	}
+}
+
 // GPUPowerForModel returns the inference GPU power draw in watts for a model.
 // Returns 50 W for unknown models as a safe default.
 func GPUPowerForModel(modelName string) float64 {

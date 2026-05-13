@@ -116,13 +116,14 @@ type ModelCandidate struct {
 
 // StreamChunk is the SSE payload for each token in a streaming response.
 // It follows the OpenAI streaming format so existing OpenAI SDK clients work
-// without modification.
+// without modification. EcoLLM is only set on the final (empty-content) chunk.
 type StreamChunk struct {
 	ID      string          `json:"id"`
 	Object  string          `json:"object"`
 	Created int64           `json:"created"`
 	Model   string          `json:"model"`
 	Choices []StreamChoice  `json:"choices"`
+	EcoLLM  *EcoLLMMetadata `json:"ecollm,omitempty"`
 }
 
 type StreamChoice struct {

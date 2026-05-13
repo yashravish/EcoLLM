@@ -49,7 +49,7 @@ export default function AdminRoutesPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-xl font-semibold text-gray-900 dark:text-white">Routing Configuration</h1>
+      <h1 className="font-mono text-base font-semibold uppercase tracking-widest text-eco-300">Routing Configuration</h1>
 
       <Card className="max-w-lg">
         <CardHeader className="pb-2">
@@ -57,10 +57,10 @@ export default function AdminRoutesPage() {
         </CardHeader>
         <CardContent>
           {isLoading ? (
-            <LoadingSkeleton lines={4} />
+            <LoadingSkeleton variant="text" lines={4} />
           ) : (
             <form onSubmit={handleSubmit((v) => mutation.mutate(v))} noValidate className="space-y-4">
-              <p className="text-xs text-gray-500">
+              <p className="text-xs text-eco-500">
                 Weights must sum to 1.0. Energy weight cannot go below 0.35 (architecture constraint).
               </p>
 
@@ -85,7 +85,7 @@ export default function AdminRoutesPage() {
               ))}
 
               {errors.energy_weight?.message?.includes('sum') && (
-                <p role="alert" className="text-sm text-red-600 dark:text-red-400">
+                <p role="alert" className="text-sm text-red-400">
                   {errors.energy_weight.message}
                 </p>
               )}

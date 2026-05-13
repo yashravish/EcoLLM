@@ -39,8 +39,8 @@ const config: Config = {
       },
       fontFamily: {
         sans:  ['var(--font-outfit)', 'system-ui', 'sans-serif'],
-        mono:  ['var(--font-space-mono)', 'Courier New', 'monospace'],
-        data:  ['var(--font-space-mono)', 'Courier New', 'monospace'],
+        mono:  ['var(--font-outfit)', 'system-ui', 'sans-serif'],
+        data:  ['var(--font-outfit)', 'system-ui', 'sans-serif'],
       },
       keyframes: {
         'fade-in': {

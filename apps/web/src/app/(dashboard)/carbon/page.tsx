@@ -16,7 +16,7 @@ export default function CarbonPage() {
   if (hasData && noData) {
     return (
       <div className="space-y-6">
-        <h1 className="text-xl font-semibold text-gray-900 dark:text-white">Carbon Impact</h1>
+        <h1 className="font-mono text-base font-semibold uppercase tracking-widest text-eco-300">Carbon Impact</h1>
         <EmptyState
           title="No carbon data yet"
           description="Carbon metrics will appear here once you start sending inference requests."
@@ -39,19 +39,16 @@ export default function CarbonPage() {
     <div className="space-y-6">
       <h1 className="text-xl font-semibold text-gray-900 dark:text-white">Carbon Impact</h1>
 
-      {/* Hero: CO2 avoided */}
       <ImpactSummary
         totalCO2eSavedGrams={savedGrams > 0 ? savedGrams : 0}
         loading={isLoading}
       />
 
-      {/* Dual-line chart */}
       <CarbonChart
         data={data?.daily_breakdown ?? []}
         loading={isLoading}
       />
 
-      {/* Comparison + model breakdown */}
       <div className="grid gap-4 lg:grid-cols-2">
         <CarbonComparison
           avgCO2eGrams={avgCO2eGrams}

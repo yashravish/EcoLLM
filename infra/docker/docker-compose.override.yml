@@ -1,0 +1,30 @@
+services:
+  # Proxy that strips the /api prefix the inference-gateway incorrectly adds
+  # before forwarding requests to Ollama's /v1/chat/completions endpoint.
+  ollama-proxy:
+    image: nginx:alpine
+    restart: unless-stopped
+    volumes:
+      - ./nginx-ollama-proxy.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - ollama
+
+  inference-gateway:
+    environment:
+      OLLAMA_BASE_URL: http://ollama-proxy:80
+
+  # Route inference through Groq (fast cloud API) instead of local Ollama.
+  api:
+    environment:
+      INFERENCE_PHI3_URL: https://api.groq.com/openai
+      INFERENCE_PHI3_MODEL: llama-3.1-8b-instant
+      INFERENCE_MISTRAL_URL: https://api.groq.com/openai
+      INFERENCE_MISTRAL_MODEL: mixtral-8x7b-32768
+      INFERENCE_LLAMA13B_URL: https://api.groq.com/openai
+      INFERENCE_LLAMA13B_MODEL: llama-3.3-70b-versatile
+      INFERENCE_LLAMA70B_URL: https://api.groq.com/openai
+      INFERENCE_LLAMA70B_MODEL: llama-3.3-70b-versatile
+      INFERENCE_API_KEY: ${INFERENCE_API_KEY}
+      REQUEST_TIMEOUT: 30s
+      ALLOWED_ORIGINS: http://localhost:3000,http://localhost:3001,http://localhost:3002,http://localhost:3003
+      FRONTEND_URL: http://localhost:3002

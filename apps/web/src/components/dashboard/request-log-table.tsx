@@ -43,10 +43,10 @@ export function RequestLogTable({ requests, loading = false }: RequestLogTablePr
       <TableBody>
         {requests.map((req) => (
           <TableRow key={req.id}>
-            <TableCell className="whitespace-nowrap text-xs text-gray-500">
+            <TableCell className="whitespace-nowrap font-mono text-xs text-eco-500">
               <Link
                 href={`/requests/${req.id}`}
-                className="block hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-1 rounded"
+                className="block hover:underline focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-accent rounded"
                 aria-label={`View request from ${formatRelativeTime(req.created_at)}`}
               >
                 {formatRelativeTime(req.created_at)}
@@ -55,7 +55,7 @@ export function RequestLogTable({ requests, loading = false }: RequestLogTablePr
             <TableCell className="max-w-xs">
               <Link
                 href={`/requests/${req.id}`}
-                className="block text-sm text-gray-700 dark:text-gray-300 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-1 rounded"
+                className="block text-xs text-eco-200 hover:text-accent hover:underline focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-accent rounded transition-colors"
               >
                 {truncate(req.prompt_original, 60)}
               </Link>
@@ -70,14 +70,14 @@ export function RequestLogTable({ requests, loading = false }: RequestLogTablePr
               {req.co2e_grams !== undefined ? (
                 <CarbonBadge co2eGrams={req.co2e_grams} />
               ) : (
-                <span className="text-xs text-gray-400">—</span>
+                <span className="font-mono text-xs text-eco-500">—</span>
               )}
             </TableCell>
             <TableCell>
               {req.cost_usd !== undefined ? (
                 <CostBadge costUsd={req.cost_usd} />
               ) : (
-                <span className="text-xs text-gray-400">—</span>
+                <span className="font-mono text-xs text-eco-500">—</span>
               )}
             </TableCell>
           </TableRow>

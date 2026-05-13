@@ -15,14 +15,14 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const pathname = usePathname();
 
   return (
-    <div className="flex h-screen overflow-hidden bg-gray-50 dark:bg-gray-950">
-      <aside className="flex w-56 flex-col border-r border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900">
-        <div className="flex h-14 items-center gap-2 px-4 border-b border-gray-100 dark:border-gray-700">
-          <Settings className="h-4 w-4 text-gray-500" aria-hidden="true" />
-          <span className="text-sm font-semibold text-gray-900 dark:text-white">Admin</span>
+    <div className="flex h-screen overflow-hidden bg-eco-900">
+      <aside className="flex w-56 flex-col border-r border-eco-600 bg-eco-800">
+        <div className="flex h-12 items-center gap-2 px-4 border-b border-eco-600">
+          <Settings className="h-4 w-4 text-eco-400" aria-hidden="true" />
+          <span className="font-mono text-xs font-semibold uppercase tracking-widest text-eco-300">Admin</span>
         </div>
 
-        <nav className="flex-1 px-3 py-4" aria-label="Admin navigation">
+        <nav className="flex-1 px-2 py-3" aria-label="Admin navigation">
           <ul role="list" className="space-y-0.5">
             {ADMIN_NAV.map((item) => {
               const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
@@ -32,14 +32,14 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                     href={item.href as Parameters<typeof Link>[0]['href']}
                     aria-current={isActive ? 'page' : undefined}
                     className={cn(
-                      'flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors',
-                      'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500',
+                      'flex items-center gap-3 rounded-md px-3 py-2 font-mono text-xs font-medium transition-colors',
+                      'focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-accent',
                       isActive
-                        ? 'bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-400'
-                        : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-white',
+                        ? 'bg-eco-700 text-accent'
+                        : 'text-eco-300 hover:bg-eco-700 hover:text-eco-100',
                     )}
                   >
-                    <span aria-hidden="true">{item.icon}</span>
+                    <span aria-hidden="true" className={isActive ? 'text-accent' : 'text-eco-400'}>{item.icon}</span>
                     {item.label}
                   </Link>
                 </li>
@@ -48,10 +48,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           </ul>
         </nav>
 
-        <div className="border-t border-gray-100 px-4 py-3 dark:border-gray-700">
+        <div className="border-t border-eco-600 px-4 py-3">
           <Link
-            href="/overview"
-            className="flex items-center gap-2 text-xs text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300"
+            href="/playground"
+            className="flex items-center gap-2 font-mono text-xs text-eco-500 hover:text-eco-200 transition-colors"
           >
             <Leaf className="h-3 w-3" aria-hidden="true" />
             Back to dashboard

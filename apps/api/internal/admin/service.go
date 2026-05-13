@@ -93,7 +93,6 @@ type UpdateModelInput struct {
 	LatencyP95Ms      *float64 `json:"latency_p95_ms"`
 }
 
-// GetSystemMetrics returns system-wide operational metrics.
 func (s *Service) GetSystemMetrics(ctx context.Context) (*SystemMetrics, error) {
 	var m SystemMetrics
 
@@ -131,7 +130,6 @@ func (s *Service) GetSystemMetrics(ctx context.Context) (*SystemMetrics, error) 
 	return &m, nil
 }
 
-// ListModels returns all models from the registry.
 func (s *Service) ListModels(ctx context.Context) ([]Model, error) {
 	rows, err := s.db.Query(ctx,
 		`SELECT id, name, display_name, runtime, quantization, status, health_status,
@@ -162,7 +160,6 @@ func (s *Service) ListModels(ctx context.Context) ([]Model, error) {
 	return models, rows.Err()
 }
 
-// CreateModel inserts a new model registry entry.
 func (s *Service) CreateModel(ctx context.Context, in CreateModelInput) (*Model, error) {
 	id := uuid.New()
 	var m Model
@@ -192,7 +189,6 @@ func (s *Service) CreateModel(ctx context.Context, in CreateModelInput) (*Model,
 	return &m, nil
 }
 
-// UpdateModel applies a partial update to a model registry row.
 func (s *Service) UpdateModel(ctx context.Context, modelID string, in UpdateModelInput) (*Model, error) {
 	_, err := s.db.Exec(ctx,
 		`UPDATE model_registry SET
@@ -232,7 +228,6 @@ func (s *Service) UpdateModel(ctx context.Context, modelID string, in UpdateMode
 	return &m, err
 }
 
-// GetRoutes returns active models and their current routing state.
 func (s *Service) GetRoutes(ctx context.Context) ([]RouteEntry, error) {
 	rows, err := s.db.Query(ctx,
 		`SELECT id, name, status,
@@ -263,7 +258,6 @@ type UpdateRouteInput struct {
 	Status  string `json:"status"` // "active" or "inactive"
 }
 
-// UpdateRoutes enables or disables a model in the routing pool.
 func (s *Service) UpdateRoutes(ctx context.Context, updates []UpdateRouteInput) error {
 	for _, u := range updates {
 		if u.Status != "active" && u.Status != "inactive" {
@@ -279,7 +273,6 @@ func (s *Service) UpdateRoutes(ctx context.Context, updates []UpdateRouteInput) 
 	return nil
 }
 
-// GetCarbonMetrics returns daily CO2e and energy totals for the past 30 days.
 func (s *Service) GetCarbonMetrics(ctx context.Context) ([]CarbonDay, error) {
 	rows, err := s.db.Query(ctx,
 		`SELECT

@@ -146,11 +146,6 @@ func (g *Gateway) InferStreamWithFallback(
 	return g.inferStream(ctx, decision.Fallback, messages, maxTokens, temperature)
 }
 
-// InferStream starts a streaming inference request on the named model.
-func (g *Gateway) InferStream(ctx context.Context, modelName string, messages []InferenceMessage, maxTokens int, temperature float64) (<-chan InferenceChunk, error) {
-	return g.inferStream(ctx, modelName, messages, maxTokens, temperature)
-}
-
 func (g *Gateway) inferStream(ctx context.Context, modelName string, messages []InferenceMessage, maxTokens int, temperature float64) (<-chan InferenceChunk, error) {
 	client, ok := g.clients[modelName]
 	if !ok {

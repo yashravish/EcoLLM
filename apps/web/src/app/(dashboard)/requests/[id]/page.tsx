@@ -24,20 +24,20 @@ function RouteTraceTimeline({ record }: { record: NonNullable<ReturnType<typeof 
       label: 'Task Classified',
       value: `${record.task_type} (complexity ${record.complexity}/10)`,
       icon: <GitFork className="h-3.5 w-3.5" />,
-      color: 'text-blue-600 bg-blue-50 dark:bg-blue-900/20 dark:text-blue-400',
+      color: 'text-blue-400 bg-blue-500/15',
     },
     {
       label: 'Model Selected',
       value: record.model_selected,
       icon: <Zap className="h-3.5 w-3.5" />,
-      color: 'text-green-600 bg-green-50 dark:bg-green-900/20 dark:text-green-400',
+      color: 'text-accent bg-accent/15',
     },
     ...(record.used_fallback && record.model_fallback
       ? [{
           label: 'Fallback Used',
           value: record.model_fallback,
           icon: <AlertTriangle className="h-3.5 w-3.5" />,
-          color: 'text-amber-600 bg-amber-50 dark:bg-amber-900/20 dark:text-amber-400',
+          color: 'text-amber-400 bg-amber-500/15',
         }]
       : []),
     {
@@ -47,16 +47,16 @@ function RouteTraceTimeline({ record }: { record: NonNullable<ReturnType<typeof 
         ? <CheckCircle2 className="h-3.5 w-3.5" />
         : <AlertTriangle className="h-3.5 w-3.5" />,
       color: record.routing_score >= 0.7
-        ? 'text-green-600 bg-green-50 dark:bg-green-900/20 dark:text-green-400'
-        : 'text-amber-600 bg-amber-50 dark:bg-amber-900/20 dark:text-amber-400',
+        ? 'text-accent bg-accent/15'
+        : 'text-amber-400 bg-amber-500/15',
     },
     {
       label: 'Cache',
       value: record.cache_hit ? 'Hit — served from cache' : 'Miss — full inference',
       icon: record.cache_hit ? <CheckCircle2 className="h-3.5 w-3.5" /> : <XCircle className="h-3.5 w-3.5" />,
       color: record.cache_hit
-        ? 'text-green-600 bg-green-50 dark:bg-green-900/20 dark:text-green-400'
-        : 'text-gray-500 bg-gray-50 dark:bg-gray-800 dark:text-gray-400',
+        ? 'text-accent bg-accent/15'
+        : 'text-eco-400 bg-eco-700',
     },
   ];
 
@@ -70,13 +70,13 @@ function RouteTraceTimeline({ record }: { record: NonNullable<ReturnType<typeof 
               {step.icon}
             </div>
             {i < steps.length - 1 && (
-              <div className="w-px flex-1 bg-gray-200 dark:bg-gray-700 my-1" />
+              <div className="w-px flex-1 bg-eco-700 my-1" />
             )}
           </div>
           {/* Content */}
           <div className="pb-4 pt-0.5 min-w-0">
-            <p className="text-xs font-medium text-gray-500 dark:text-gray-400">{step.label}</p>
-            <p className="text-sm text-gray-900 dark:text-white truncate">{step.value}</p>
+            <p className="font-mono text-[10px] font-medium text-eco-500">{step.label}</p>
+            <p className="font-mono text-xs text-eco-100 truncate">{step.value}</p>
           </div>
         </div>
       ))}
@@ -156,7 +156,7 @@ export default function RequestDetailPage() {
           value={`${record.latency_ms} ms`}
         />
         <MetricTile
-          icon={<Leaf className="h-3 w-3 text-green-500" />}
+          icon={<Leaf className="h-3 w-3 text-accent" />}
           label="CO₂e"
           value={record.co2e_grams != null ? `${record.co2e_grams.toFixed(4)} g` : '—'}
         />

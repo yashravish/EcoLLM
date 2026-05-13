@@ -17,7 +17,6 @@ export function Header({ onMenuClick }: HeaderProps) {
   const { data: me } = useMe();
   const logoutMutation = useLogout();
 
-  const orgName  = me?.org?.name  ?? 'My Organization';
   const userName = me?.user.name ?? 'Account';
 
   return (
@@ -32,10 +31,6 @@ export function Header({ onMenuClick }: HeaderProps) {
           <Menu className="h-4 w-4" aria-hidden="true" />
         </button>
 
-        <span className="hidden font-mono text-xs text-eco-400 sm:block">
-          <span className="text-eco-600">/</span>{' '}
-          <span className="text-eco-200">{orgName}</span>
-        </span>
       </div>
 
       {/* Right: user menu */}
@@ -51,12 +46,12 @@ export function Header({ onMenuClick }: HeaderProps) {
           )}
         >
           <div
-            className="flex h-6 w-6 items-center justify-center rounded-full bg-accent/10 ring-1 ring-accent/40 font-mono text-[10px] font-bold text-accent"
+            className="flex h-6 w-6 items-center justify-center rounded-full bg-accent/10 ring-1 ring-accent/40 text-[11px] font-bold leading-none text-accent"
             aria-hidden="true"
           >
             {userName.charAt(0).toUpperCase()}
           </div>
-          <span className="hidden text-xs text-eco-200 sm:block">{userName}</span>
+          <span className="hidden font-mono text-xs text-eco-200 sm:block">{userName}</span>
           <ChevronDown
             className={cn(
               'h-3 w-3 text-eco-400 transition-transform duration-150',
@@ -91,7 +86,7 @@ export function Header({ onMenuClick }: HeaderProps) {
                 href="/settings"
                 role="menuitem"
                 onClick={() => setUserMenuOpen(false)}
-                className="flex items-center gap-2.5 px-4 py-2 text-xs text-eco-200 hover:bg-eco-700 hover:text-eco-50 focus-visible:outline-none focus-visible:bg-eco-700 transition-colors"
+                className="flex items-center gap-2.5 px-4 py-2 font-mono text-xs text-eco-200 hover:bg-eco-700 hover:text-eco-50 focus-visible:outline-none focus-visible:bg-eco-700 transition-colors"
               >
                 <Settings className="h-3.5 w-3.5" aria-hidden="true" />
                 Settings
@@ -104,7 +99,7 @@ export function Header({ onMenuClick }: HeaderProps) {
                     onSettled: () => router.push('/login'),
                   });
                 }}
-                className="flex w-full items-center gap-2.5 px-4 py-2 text-xs text-red-400 hover:bg-red-500/10 focus-visible:outline-none focus-visible:bg-red-500/10 transition-colors"
+                className="flex w-full items-center gap-2.5 px-4 py-2 font-mono text-xs text-red-400 hover:bg-red-500/10 focus-visible:outline-none focus-visible:bg-red-500/10 transition-colors"
               >
                 <LogOut className="h-3.5 w-3.5" aria-hidden="true" />
                 Sign out

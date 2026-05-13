@@ -107,11 +107,23 @@ services:
       ENABLE_FALLBACK: "true"
       ENABLE_PROMPT_OPTIMIZATION: "false"
       PHI3_SIDECAR_URL: http://prompt-optimizer:8000
-      INFERENCE_PHI3_URL: http://inference-gateway:8090/phi3
-      INFERENCE_MISTRAL_URL: http://inference-gateway:8090/mistral
-      INFERENCE_LLAMA13B_URL: http://inference-gateway:8090/llama13b
-      INFERENCE_LLAMA70B_URL: http://inference-gateway:8090/llama70b
+      INFERENCE_PHI3_URL: ${INFERENCE_PHI3_URL:-http://inference-gateway:8090/phi3}
+      INFERENCE_MISTRAL_URL: ${INFERENCE_MISTRAL_URL:-http://inference-gateway:8090/mistral}
+      INFERENCE_LLAMA13B_URL: ${INFERENCE_LLAMA13B_URL:-http://inference-gateway:8090/llama13b}
+      INFERENCE_LLAMA70B_URL: ${INFERENCE_LLAMA70B_URL:-http://inference-gateway:8090/llama70b}
+      INFERENCE_API_KEY: ${INFERENCE_API_KEY}
+      INFERENCE_PHI3_MODEL: ${INFERENCE_PHI3_MODEL}
+      INFERENCE_MISTRAL_MODEL: ${INFERENCE_MISTRAL_MODEL}
+      INFERENCE_LLAMA13B_MODEL: ${INFERENCE_LLAMA13B_MODEL}
+      INFERENCE_LLAMA70B_MODEL: ${INFERENCE_LLAMA70B_MODEL}
+      GRID_API_KEY: ${GRID_API_KEY}
       OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
+      GITHUB_CLIENT_ID: ${GITHUB_CLIENT_ID}
+      GITHUB_CLIENT_SECRET: ${GITHUB_CLIENT_SECRET}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
+      API_BASE_URL: ${API_BASE_URL:-http://localhost:8080}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
     depends_on:
       postgres:
         condition: service_healthy

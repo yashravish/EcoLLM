@@ -5,7 +5,7 @@ type ButtonSize = 'sm' | 'md' | 'lg' | 'icon';
 
 const variantClasses: Record<ButtonVariant, string> = {
   primary:
-    'bg-accent text-eco-900 font-semibold hover:bg-accent-dim focus-visible:ring-accent/50 disabled:bg-eco-500 disabled:text-eco-300 shadow-[inset_0_1px_0_rgba(255,255,255,0.14),0_1px_3px_rgba(0,0,0,0.25)] hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.10),0_1px_2px_rgba(0,0,0,0.2)]',
+    'bg-eco-800 text-accent font-semibold border border-eco-600 hover:bg-eco-700 hover:border-eco-500 focus-visible:ring-accent/40 disabled:opacity-40',
   secondary:
     'bg-eco-700 text-eco-100 border border-eco-500 hover:bg-eco-600 focus-visible:ring-eco-400',
   ghost:

@@ -23,13 +23,13 @@ function MetricTile({
     <Card>
       <CardContent className="pt-6">
         {loading ? (
-          <LoadingSkeleton variant="stat" />
+          <LoadingSkeleton variant="card" />
         ) : (
           <div className="flex items-start gap-3">
             <div className="mt-0.5">{icon}</div>
             <div>
-              <p className="text-2xl font-bold text-gray-900 dark:text-white">{value}</p>
-              <p className="mt-1 text-sm text-gray-500">{label}</p>
+              <p className="font-mono text-2xl font-bold text-eco-50">{value}</p>
+              <p className="mt-1 font-mono text-xs text-eco-400">{label}</p>
             </div>
           </div>
         )}
@@ -50,7 +50,7 @@ export default function AdminMetricsPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-xl font-semibold text-gray-900 dark:text-white">System Metrics</h1>
+      <h1 className="font-mono text-base font-semibold uppercase tracking-widest text-eco-300">System Metrics</h1>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <MetricTile
@@ -62,7 +62,7 @@ export default function AdminMetricsPage() {
         <MetricTile
           label="Active models"
           value={data?.active_models.toString() ?? '—'}
-          icon={<Cpu className="h-5 w-5 text-purple-500" />}
+          icon={<Cpu className="h-5 w-5 text-eco-300" />}
           loading={isLoading}
         />
         <MetricTile
@@ -74,7 +74,7 @@ export default function AdminMetricsPage() {
         <MetricTile
           label="CO2e today"
           value={data ? formatCO2(data.total_co2e_today_grams) : '—'}
-          icon={<Leaf className="h-5 w-5 text-green-600" />}
+          icon={<Leaf className="h-5 w-5 text-accent" />}
           loading={isLoading}
         />
       </div>
@@ -89,12 +89,12 @@ export default function AdminMetricsPage() {
               {gpuEntries.map(([model, pct]) => (
                 <div key={model}>
                   <div className="mb-1 flex items-center justify-between text-sm">
-                    <span className="text-gray-700 dark:text-gray-300">{model}</span>
-                    <span className="font-medium text-gray-900 dark:text-white">{pct.toFixed(1)}%</span>
+                    <span className="font-mono text-xs text-eco-400">{model}</span>
+                    <span className="font-mono text-xs font-medium text-eco-200">{pct.toFixed(1)}%</span>
                   </div>
-                  <div className="h-2 overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800">
+                  <div className="h-2 overflow-hidden rounded-full bg-eco-700">
                     <div
-                      className="h-full rounded-full bg-green-500 transition-all"
+                      className="h-full rounded-full bg-accent transition-all"
                       style={{ width: `${Math.min(pct, 100)}%` }}
                       role="progressbar"
                       aria-valuenow={pct}
@@ -116,16 +116,16 @@ export default function AdminMetricsPage() {
         </CardHeader>
         <CardContent>
           {isLoading ? (
-            <LoadingSkeleton lines={2} />
+            <LoadingSkeleton variant="text" lines={2} />
           ) : (
             <div className="flex items-center gap-4">
-              <div className="text-3xl font-bold text-gray-900 dark:text-white">
+              <div className="font-mono text-3xl font-bold text-eco-50">
                 {data ? `${(data.cache_hit_rate * 100).toFixed(1)}%` : '—'}
               </div>
-              <div className="text-sm text-gray-500">
+              <div className="font-mono text-xs text-eco-500">
                 Response cache hit rate
                 <br />
-                <span className="text-xs">Target: &gt;15%</span>
+                <span className="text-eco-600">Target: &gt;15%</span>
               </div>
             </div>
           )}

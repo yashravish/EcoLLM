@@ -17,21 +17,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   useEffect(() => {
     if (error instanceof ApiError && error.status === 401) {
       router.replace('/login');
-      return;
     }
-    // OAuth users who haven't named their org yet must complete onboarding first.
-    if (data && !data.org?.id && pathname !== '/onboarding/organisation') {
-      router.replace('/onboarding/organisation');
-    }
-  }, [data, error, router, pathname]);
+  }, [error, router]);
 
   if (isLoading) {
     return (
       <div className="flex h-screen items-center justify-center bg-eco-900">
         <div className="flex flex-col items-center gap-4">
-          <div className="flex h-10 w-10 items-center justify-center rounded bg-accent/10 ring-1 ring-accent/30">
-            <Leaf className="h-5 w-5 text-accent animate-pulse" aria-hidden="true" />
-          </div>
+          <Leaf className="h-10 w-10 text-accent animate-pulse" aria-hidden="true" />
           <p className="text-xs font-mono text-eco-400 tracking-widest uppercase">Loading</p>
           <div className="flex gap-1" aria-label="Loading">
             {[0, 1, 2].map((i) => (

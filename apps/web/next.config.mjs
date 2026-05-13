@@ -2,9 +2,6 @@
 const nextConfig = {
   output: "standalone",
   transpilePackages: ['react-globe.gl', 'globe.gl', 'three-globe'],
-  experimental: {
-    typedRoutes: true,
-  },
   async rewrites() {
     const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080";
     return [

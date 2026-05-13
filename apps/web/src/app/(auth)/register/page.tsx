@@ -23,7 +23,6 @@ const schema = z.object({
   email:            z.string().min(1, 'Email is required'),
   password:         z.string().min(1, 'Password is required').min(8, 'Password must be at least 8 characters'),
   confirm_password: z.string(),
-  org_name:         z.string().min(2, 'Organisation name must be at least 2 characters'),
 }).refine((data) => data.password === data.confirm_password, {
   message: 'Passwords do not match',
   path: ['confirm_password'],
@@ -45,7 +44,7 @@ function RegisterInner() {
     handleSubmit,
     watch,
     formState: { errors, isSubmitting },
-  } = useForm<FormValues>({ resolver: zodResolver(schema), mode: 'onBlur', reValidateMode: 'onChange' });
+  } = useForm<FormValues>({ resolver: zodResolver(schema), mode: 'onTouched' });
 
   const watchedPassword        = watch('password', '');
   const watchedConfirmPassword = watch('confirm_password', '');
@@ -54,7 +53,7 @@ function RegisterInner() {
     setServerError(null);
     try {
       await register.mutateAsync(values);
-      router.push('/overview');
+      router.push('/playground');
     } catch (err) {
       if (err instanceof ApiError) {
         setServerError(err.message);
@@ -65,7 +64,7 @@ function RegisterInner() {
   };
 
   return (
-    <div className="auth-card-glow rounded-2xl bg-eco-800 px-6 py-4">
+    <div>
 
       {/* Mobile-only logo */}
       <MobileLogo className="mb-3" />
@@ -98,25 +97,14 @@ function RegisterInner() {
       </div>
 
       <form onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-2">
-        {/* Name + Org on one row */}
-        <div className="grid grid-cols-2 gap-3">
-          <Input
-            label="Full name"
-            type="text"
-            autoComplete="name"
-            placeholder="Jane Smith"
-            error={errors.name?.message}
-            {...field('name')}
-          />
-          <Input
-            label="Organization"
-            type="text"
-            autoComplete="organization"
-            placeholder="Acme Inc."
-            error={errors.org_name?.message}
-            {...field('org_name')}
-          />
-        </div>
+        <Input
+          label="Full name"
+          type="text"
+          autoComplete="name"
+          placeholder="Jane Smith"
+          error={errors.name?.message}
+          {...field('name')}
+        />
 
         <Input
           label="Email"

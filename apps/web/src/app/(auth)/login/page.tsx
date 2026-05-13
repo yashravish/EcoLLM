@@ -37,18 +37,20 @@ function LoginInner() {
     register,
     handleSubmit,
     formState: { errors, isSubmitting },
-  } = useForm<FormValues>({ resolver: zodResolver(schema), mode: 'onBlur', reValidateMode: 'onChange' });
+  } = useForm<FormValues>({ resolver: zodResolver(schema), mode: 'onTouched' });
 
   const onSubmit = async (values: FormValues) => {
     setServerError(null);
     try {
       await login.mutateAsync(values);
-      router.push('/overview');
+      router.push('/playground');
     } catch (err) {
       if (err instanceof ApiError && err.status === 401) {
         setServerError('Incorrect email or password.');
       } else if (err instanceof ApiError && err.status === 429) {
         setServerError('Too many attempts. Please wait a moment and try again.');
+      } else if (err instanceof TypeError && err.message === 'Failed to fetch') {
+        setServerError('Unable to reach the server. Please check your connection.');
       } else {
         setServerError('Something went wrong. Please try again.');
       }
@@ -56,7 +58,7 @@ function LoginInner() {
   };
 
   return (
-    <div className="auth-card-glow rounded-2xl bg-eco-800 p-8">
+    <div>
 
       {/* Mobile-only logo */}
       <MobileLogo className="mb-5" />

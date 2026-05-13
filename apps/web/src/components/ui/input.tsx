@@ -18,7 +18,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
         {label && (
           <label
             htmlFor={inputId}
-            className="text-xs font-medium tracking-wide text-eco-300"
+            className="font-mono text-xs font-medium tracking-wide text-eco-400"
           >
             {label}
           </label>
@@ -29,7 +29,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
           aria-invalid={error ? 'true' : undefined}
           aria-describedby={[errorId, hintId].filter(Boolean).join(' ') || undefined}
           className={cn(
-            'w-full rounded-md border border-gray-700/80 bg-eco-800/80 px-3 py-2.5 text-sm text-eco-100',
+            'w-full rounded-md border border-eco-700 bg-eco-800/80 px-3 py-2.5 text-sm text-eco-100',
             'placeholder:text-eco-400/60',
             'focus:border-accent/60 focus:outline-none focus:ring-2 focus:ring-accent/15',
             'disabled:cursor-not-allowed disabled:opacity-40',

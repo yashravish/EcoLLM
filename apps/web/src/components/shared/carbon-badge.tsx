@@ -1,10 +1,9 @@
-import { cn } from '@/lib/utils';
-import { formatCO2 } from '@/lib/utils';
+import { cn, formatCO2 } from '@/lib/utils';
 
 function getCO2Color(grams: number): string {
-  if (grams < 5) return 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400';
-  if (grams < 20) return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400';
-  return 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400';
+  if (grams < 5) return 'bg-accent/15 text-accent';
+  if (grams < 20) return 'bg-amber-500/15 text-amber-400';
+  return 'bg-red-500/15 text-red-400';
 }
 
 export function CarbonBadge({ co2eGrams }: { co2eGrams: number }) {

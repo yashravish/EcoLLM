@@ -94,7 +94,8 @@ func (f *fakeRepo) UpdateMemberRole(_ context.Context, _, _ uuid.UUID, _ string)
 func (f *fakeRepo) ListAPIKeys(_ context.Context, _ uuid.UUID) ([]APIKey, error)       { return nil, nil }
 func (f *fakeRepo) CreateAPIKey(_ context.Context, _ *APIKey) error                    { return nil }
 func (f *fakeRepo) RevokeAPIKey(_ context.Context, _, _ uuid.UUID) error               { return nil }
-func (f *fakeRepo) RemoveMember(_ context.Context, _, _ uuid.UUID) error               { return nil }
+func (f *fakeRepo) RemoveMember(_ context.Context, _, _ uuid.UUID) error { return nil }
+func (f *fakeRepo) DeleteUser(_ context.Context, _ uuid.UUID) error      { return nil }
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 

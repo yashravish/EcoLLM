@@ -1,10 +1,9 @@
-import { cn } from '@/lib/utils';
-import { formatCost } from '@/lib/utils';
+import { cn, formatCost } from '@/lib/utils';
 
 function getCostColor(usd: number): string {
-  if (usd < 0.001) return 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400';
-  if (usd < 0.01) return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400';
-  return 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300';
+  if (usd < 0.001) return 'bg-accent/15 text-accent';
+  if (usd < 0.01) return 'bg-amber-500/15 text-amber-400';
+  return 'bg-eco-700 text-eco-300';
 }
 
 export function CostBadge({ costUsd }: { costUsd: number }) {

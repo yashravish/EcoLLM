@@ -103,12 +103,12 @@ function CreateKeyDialog({ open, onClose }: CreateKeyDialogProps) {
               Copy your key now. It will not be shown again.
             </DialogDescription>
 
-            <div className="mt-4 rounded-md border border-amber-200 bg-amber-50 p-3 dark:border-amber-800 dark:bg-amber-950">
-              <p className="mb-2 text-xs font-medium text-amber-800 dark:text-amber-300">
-                ⚠ Save this key now. It will not be shown again.
+            <div className="mt-4 rounded-md border border-amber-500/30 bg-amber-500/10 p-3">
+              <p className="mb-2 text-xs font-medium text-amber-400">
+                Save this key now — it will not be shown again.
               </p>
               <div className="flex items-center gap-2">
-                <code className="flex-1 break-all rounded bg-white px-2 py-1.5 font-mono text-xs text-gray-900 dark:bg-gray-800 dark:text-white">
+                <code className="flex-1 break-all rounded border border-eco-700 bg-eco-900 px-2 py-1.5 font-mono text-xs text-eco-100">
                   {createdKey.key}
                 </code>
                 <Button
@@ -118,14 +118,14 @@ function CreateKeyDialog({ open, onClose }: CreateKeyDialogProps) {
                   aria-label="Copy API key to clipboard"
                 >
                   {copied ? (
-                    <Check className="h-4 w-4 text-green-600" aria-hidden="true" />
+                    <Check className="h-4 w-4 text-accent" aria-hidden="true" />
                   ) : (
                     <Copy className="h-4 w-4" aria-hidden="true" />
                   )}
                 </Button>
               </div>
               {copied && (
-                <p role="status" className="mt-1 text-xs text-green-700 dark:text-green-400">
+                <p role="status" className="mt-1 font-mono text-xs text-accent">
                   Copied!
                 </p>
               )}
@@ -153,7 +153,7 @@ function CreateKeyDialog({ open, onClose }: CreateKeyDialogProps) {
 
               {/* Scopes */}
               <fieldset>
-                <legend className="mb-1.5 text-sm font-medium text-gray-700 dark:text-gray-300">
+                <legend className="mb-2 text-xs font-medium text-eco-400">
                   Permissions
                 </legend>
                 <div className="space-y-2">
@@ -162,17 +162,15 @@ function CreateKeyDialog({ open, onClose }: CreateKeyDialogProps) {
                       <input
                         type="checkbox"
                         value={scope}
-                        className="h-4 w-4 rounded border-gray-300 text-green-600 focus:ring-2 focus:ring-green-500 focus:ring-offset-1"
+                        className="h-3.5 w-3.5 rounded border-eco-600 bg-eco-800 accent-[#00E87A] focus:ring-2 focus:ring-accent focus:ring-offset-eco-800"
                         {...register('scopes')}
                       />
-                      <span className="text-sm capitalize text-gray-700 dark:text-gray-300">
-                        {scope}
-                      </span>
+                      <span className="text-xs capitalize text-eco-300">{scope}</span>
                     </label>
                   ))}
                 </div>
                 {errors.scopes && (
-                  <p role="alert" className="mt-1 text-xs text-red-600 dark:text-red-400">
+                  <p role="alert" className="mt-1 text-xs text-red-400">
                     {errors.scopes.message}
                   </p>
                 )}
@@ -215,11 +213,17 @@ export default function ApiKeysPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold text-gray-900 dark:text-white">API Keys</h1>
-        <Button onClick={() => setDialogOpen(true)}>
-          <Plus className="h-4 w-4" aria-hidden="true" />
-          Create New Key
-        </Button>
+        <div>
+          <h1 className="text-base font-semibold text-eco-50">API Keys</h1>
+          <p className="mt-0.5 text-xs text-eco-400">Authenticate requests to the EcoLLM API</p>
+        </div>
+        <button
+          onClick={() => setDialogOpen(true)}
+          className="flex items-center gap-1.5 rounded-md border border-eco-500 bg-eco-700 px-3 py-1.5 text-xs font-medium text-eco-100 transition-colors hover:border-eco-400 hover:bg-eco-600 hover:text-eco-50 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-accent"
+        >
+          <Plus className="h-3.5 w-3.5" aria-hidden="true" />
+          New key
+        </button>
       </div>
 
       {isLoading && <LoadingSkeleton variant="table" lines={3} />}

@@ -55,7 +55,6 @@ type orgResponse struct {
 	Plan string `json:"plan"`
 }
 
-// Login handles POST /auth/login.
 func (h *Handler) Login(c *fiber.Ctx) error {
 	var req loginRequest
 	if err := c.BodyParser(&req); err != nil {
@@ -118,7 +117,6 @@ func (h *Handler) Login(c *fiber.Ctx) error {
 	})
 }
 
-// Logout handles POST /auth/logout.
 func (h *Handler) Logout(c *fiber.Ctx) error {
 	jti, _ := c.Locals("jti").(string)
 	if jti != "" {
@@ -127,9 +125,7 @@ func (h *Handler) Logout(c *fiber.Ctx) error {
 	return c.SendStatus(fiber.StatusNoContent)
 }
 
-// Me handles GET /auth/me and GET /me.
-// OAuth users who haven't completed onboarding have org_id="" in their JWT;
-// in that case the response omits the "org" key rather than returning 401.
+// OAuth users without an org have org_id="" in their JWT; response omits "org" rather than 401.
 func (h *Handler) Me(c *fiber.Ctx) error {
 	userID, _ := c.Locals("user_id").(string)
 	if userID == "" {
@@ -161,10 +157,8 @@ func (h *Handler) Me(c *fiber.Ctx) error {
 	return c.JSON(resp)
 }
 
-// Register handles POST /auth/register.
 func (h *Handler) Register(c *fiber.Ctx) error {
 	var req struct {
-		OrgName  string `json:"org_name"`
 		Email    string `json:"email"`
 		Password string `json:"password"`
 		Name     string `json:"name"`
@@ -172,15 +166,14 @@ func (h *Handler) Register(c *fiber.Ctx) error {
 	if err := c.BodyParser(&req); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(apierror.ErrInvalidRequest)
 	}
-	if req.OrgName == "" || req.Email == "" || req.Password == "" {
-		return c.Status(fiber.StatusBadRequest).JSON(apierror.Validation("org_name/email/password", "required"))
+	if req.Email == "" || req.Password == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(apierror.Validation("email/password", "required"))
 	}
 	if len(req.Password) < 8 {
 		return c.Status(fiber.StatusBadRequest).JSON(apierror.Validation("password", "must be at least 8 characters"))
 	}
 
 	resp, err := h.svc.Register(c.UserContext(), RegisterInput{
-		OrgName:  req.OrgName,
 		Email:    req.Email,
 		Password: req.Password,
 		Name:     req.Name,
@@ -207,8 +200,19 @@ func (h *Handler) Register(c *fiber.Ctx) error {
 	})
 }
 
-// RegisterOrg handles POST /auth/register/org.
-// Called by org-less OAuth users after they provide an organisation name.
+func (h *Handler) DeleteMe(c *fiber.Ctx) error {
+	userID, _ := c.Locals("user_id").(string)
+	if userID == "" {
+		return c.Status(fiber.StatusUnauthorized).JSON(apierror.ErrUnauthorized)
+	}
+	jti, _ := c.Locals("jti").(string)
+	if err := h.svc.DeleteMe(c.UserContext(), userID, jti); err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(apierror.ErrInternal)
+	}
+	return c.SendStatus(fiber.StatusNoContent)
+}
+
+// Called by org-less OAuth users after they provide an org name.
 func (h *Handler) RegisterOrg(c *fiber.Ctx) error {
 	userID, _ := c.Locals("user_id").(string)
 	if userID == "" {
@@ -240,7 +244,6 @@ func (h *Handler) RegisterOrg(c *fiber.Ctx) error {
 	})
 }
 
-// GetOrg handles GET /organizations/:id.
 func (h *Handler) GetOrg(c *fiber.Ctx) error {
 	orgID := c.Params("id")
 	callerOrgID, _ := c.Locals("org_id").(string)
@@ -259,7 +262,6 @@ func (h *Handler) GetOrg(c *fiber.Ctx) error {
 	return c.JSON(org)
 }
 
-// UpdateOrg handles PATCH /organizations/:id.
 func (h *Handler) UpdateOrg(c *fiber.Ctx) error {
 	orgID := c.Params("id")
 	callerOrgID, _ := c.Locals("org_id").(string)
@@ -280,7 +282,6 @@ func (h *Handler) UpdateOrg(c *fiber.Ctx) error {
 	return c.JSON(org)
 }
 
-// ListMembers handles GET /organizations/:id/members.
 func (h *Handler) ListMembers(c *fiber.Ctx) error {
 	orgID := c.Params("id")
 	callerOrgID, _ := c.Locals("org_id").(string)
@@ -296,7 +297,6 @@ func (h *Handler) ListMembers(c *fiber.Ctx) error {
 	return c.JSON(fiber.Map{"org_id": orgID, "members": members})
 }
 
-// InviteMember handles POST /organizations/:id/members.
 func (h *Handler) InviteMember(c *fiber.Ctx) error {
 	orgID := c.Params("id")
 	callerOrgID, _ := c.Locals("org_id").(string)
@@ -320,7 +320,6 @@ func (h *Handler) InviteMember(c *fiber.Ctx) error {
 	return c.Status(fiber.StatusCreated).JSON(member)
 }
 
-// UpdateMemberRole handles PATCH /organizations/:id/members/:userID.
 func (h *Handler) UpdateMemberRole(c *fiber.Ctx) error {
 	orgID := c.Params("id")
 	userID := c.Params("userID")
@@ -343,7 +342,6 @@ func (h *Handler) UpdateMemberRole(c *fiber.Ctx) error {
 	return c.SendStatus(fiber.StatusNoContent)
 }
 
-// ListAPIKeys handles GET /api-keys.
 func (h *Handler) ListAPIKeys(c *fiber.Ctx) error {
 	orgID, _ := c.Locals("org_id").(string)
 	if orgID == "" {
@@ -387,7 +385,6 @@ func (h *Handler) ListAPIKeys(c *fiber.Ctx) error {
 	return c.JSON(resp)
 }
 
-// CreateAPIKey handles POST /api-keys.
 func (h *Handler) CreateAPIKey(c *fiber.Ctx) error {
 	orgID, _ := c.Locals("org_id").(string)
 	userID, _ := c.Locals("user_id").(string)
@@ -443,7 +440,6 @@ func (h *Handler) CreateAPIKey(c *fiber.Ctx) error {
 	})
 }
 
-// RevokeAPIKey handles DELETE /api-keys/:id.
 func (h *Handler) RevokeAPIKey(c *fiber.Ctx) error {
 	orgID, _ := c.Locals("org_id").(string)
 	if orgID == "" {
@@ -474,7 +470,6 @@ func (h *Handler) RevokeAPIKey(c *fiber.Ctx) error {
 	return c.SendStatus(fiber.StatusNoContent)
 }
 
-// RemoveMember handles DELETE /organizations/:id/members/:userID.
 func (h *Handler) RemoveMember(c *fiber.Ctx) error {
 	orgID := c.Params("id")
 	userID := c.Params("userID")

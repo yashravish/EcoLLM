@@ -90,7 +90,7 @@ export default function AdminModelsPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold text-gray-900 dark:text-white">Model Registry</h1>
+        <h1 className="font-mono text-base font-semibold uppercase tracking-widest text-eco-300">Model Registry</h1>
         <Button onClick={() => setDialogOpen(true)}>
           <Plus className="h-4 w-4" aria-hidden="true" />
           Register Model
@@ -110,22 +110,22 @@ export default function AdminModelsPage() {
             <div className="overflow-x-auto">
               <table className="w-full text-sm" aria-label="Model registry admin">
                 <thead>
-                  <tr className="border-b border-gray-100 dark:border-gray-800">
+                  <tr className="border-b border-eco-700">
                     {['Name', 'Status', 'Tasks', 'Quality', 'Latency p95', 'Actions'].map((h) => (
-                      <th key={h} className="py-3 px-4 text-left text-xs font-medium uppercase tracking-wide text-gray-500 last:text-right">{h}</th>
+                      <th key={h} className="py-3 px-4 text-left font-mono text-[10px] font-medium uppercase tracking-widest text-eco-500 last:text-right">{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
                   {models.map((m: Model) => (
-                    <tr key={m.id} className="border-b border-gray-100 last:border-0 dark:border-gray-800">
-                      <td className="py-3 px-4 font-medium text-gray-900 dark:text-white">{m.name}</td>
+                    <tr key={m.id} className="border-b border-eco-700 last:border-0">
+                      <td className="py-3 px-4 font-mono text-xs font-medium text-eco-100">{m.name}</td>
                       <td className="py-3 px-4">
-                        <Badge variant={m.status === 'active' ? 'default' : 'secondary'}>{m.status}</Badge>
+                        <Badge variant={m.status === 'active' ? 'success' : 'outline'}>{m.status}</Badge>
                       </td>
-                      <td className="py-3 px-4 text-gray-600 dark:text-gray-400">{m.tasks.join(', ')}</td>
-                      <td className="py-3 px-4 text-gray-600 dark:text-gray-400">{(m.quality_benchmark * 100).toFixed(0)}%</td>
-                      <td className="py-3 px-4 text-gray-600 dark:text-gray-400">{m.latency_p95_ms}ms</td>
+                      <td className="py-3 px-4 font-mono text-xs text-eco-400">{m.tasks.join(', ')}</td>
+                      <td className="py-3 px-4 font-mono text-xs text-eco-400">{(m.quality_benchmark * 100).toFixed(0)}%</td>
+                      <td className="py-3 px-4 font-mono text-xs text-eco-400">{m.latency_p95_ms}ms</td>
                       <td className="py-3 px-4 text-right">
                         <Button
                           variant="secondary"
