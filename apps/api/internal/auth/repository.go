@@ -2,6 +2,7 @@ package auth
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -191,12 +192,26 @@ func (r *Repository) RevokeAPIKey(ctx context.Context, keyID uuid.UUID, orgID uu
 }
 
 // CreateOrgAndUser creates org, user, and initial API key in a single transaction.
+// If a soft-deleted row already exists for this email, the row is revived
+// (UPDATE clears revoked_at) and pointed at the new org — this lets users
+// re-register with the same email after deleting their account. Hard-delete
+// isn't an option because audit_logs.user_id has no ON DELETE CASCADE.
 func (r *Repository) CreateOrgAndUser(ctx context.Context, org OrgInput, user UserInput, key *APIKey) (*Organization, *User, error) {
 	tx, err := r.db.Begin(ctx)
 	if err != nil {
 		return nil, nil, err
 	}
 	defer tx.Rollback(ctx)
+
+	var existingID uuid.UUID
+	reviveErr := tx.QueryRow(ctx,
+		`SELECT id FROM users WHERE email = $1 AND revoked_at IS NOT NULL`,
+		user.Email,
+	).Scan(&existingID)
+	if reviveErr != nil && !errors.Is(reviveErr, pgx.ErrNoRows) {
+		return nil, nil, fmt.Errorf("check existing user: %w", reviveErr)
+	}
+	reviving := reviveErr == nil
 
 	orgID := uuid.New()
 	var o Organization
@@ -211,19 +226,36 @@ func (r *Repository) CreateOrgAndUser(ctx context.Context, org OrgInput, user Us
 		return nil, nil, fmt.Errorf("create org: %w", err)
 	}
 
-	userID := uuid.New()
 	var u User
-	if err := tx.QueryRow(ctx,
-		`INSERT INTO users (id, org_id, email, password_hash, role, name)
-		 VALUES ($1, $2, $3, $4, $5, $6)
-		 RETURNING id, org_id, email, COALESCE(password_hash,''), role, COALESCE(name,''), created_at`,
-		userID, orgID, user.Email, user.PasswordHash, user.Role, user.Name,
-	).Scan(&u.ID, &u.OrgID, &u.Email, &u.PasswordHash, &u.Role, &u.Name, &u.CreatedAt); err != nil {
-		return nil, nil, fmt.Errorf("create user: %w", err)
+	if reviving {
+		if err := tx.QueryRow(ctx,
+			`UPDATE users
+			   SET org_id        = $1,
+			       password_hash = $2,
+			       role          = $3,
+			       name          = $4,
+			       revoked_at    = NULL,
+			       updated_at    = now()
+			 WHERE id = $5
+			 RETURNING id, org_id, email, COALESCE(password_hash,''), role, COALESCE(name,''), created_at`,
+			orgID, user.PasswordHash, user.Role, user.Name, existingID,
+		).Scan(&u.ID, &u.OrgID, &u.Email, &u.PasswordHash, &u.Role, &u.Name, &u.CreatedAt); err != nil {
+			return nil, nil, fmt.Errorf("revive user: %w", err)
+		}
+	} else {
+		userID := uuid.New()
+		if err := tx.QueryRow(ctx,
+			`INSERT INTO users (id, org_id, email, password_hash, role, name)
+			 VALUES ($1, $2, $3, $4, $5, $6)
+			 RETURNING id, org_id, email, COALESCE(password_hash,''), role, COALESCE(name,''), created_at`,
+			userID, orgID, user.Email, user.PasswordHash, user.Role, user.Name,
+		).Scan(&u.ID, &u.OrgID, &u.Email, &u.PasswordHash, &u.Role, &u.Name, &u.CreatedAt); err != nil {
+			return nil, nil, fmt.Errorf("create user: %w", err)
+		}
 	}
 
 	key.OrgID = orgID
-	key.CreatedBy = userID
+	key.CreatedBy = u.ID
 	if _, err := tx.Exec(ctx,
 		`INSERT INTO api_keys (id, org_id, created_by, name, key_hash, key_prefix, scopes)
 		 VALUES ($1, $2, $3, $4, $5, $6, $7)`,
