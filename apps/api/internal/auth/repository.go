@@ -334,15 +334,35 @@ func (r *Repository) ListAPIKeys(ctx context.Context, orgID uuid.UUID) ([]APIKey
 	return keys, rows.Err()
 }
 
-// DeleteUser hard-deletes a user row. Cascades to api_keys via ON DELETE CASCADE.
-// The user's org is left intact.
+// DeleteUser soft-deletes a user and revokes every API key they created.
+// Hard-delete is blocked by api_keys.created_by FK (no ON DELETE CASCADE);
+// soft-delete also preserves the audit trail. The user's org is left intact.
 func (r *Repository) DeleteUser(ctx context.Context, userID uuid.UUID) error {
-	tag, err := r.db.Exec(ctx, `DELETE FROM users WHERE id = $1`, userID)
+	tx, err := r.db.Begin(ctx)
 	if err != nil {
-		return fmt.Errorf("delete user: %w", err)
+		return fmt.Errorf("begin tx: %w", err)
+	}
+	defer tx.Rollback(ctx)
+
+	if _, err := tx.Exec(ctx,
+		`UPDATE api_keys SET revoked_at = now()
+		 WHERE created_by = $1 AND revoked_at IS NULL`,
+		userID,
+	); err != nil {
+		return fmt.Errorf("revoke api keys: %w", err)
+	}
+
+	tag, err := tx.Exec(ctx,
+		`UPDATE users SET revoked_at = now()
+		 WHERE id = $1 AND revoked_at IS NULL`,
+		userID,
+	)
+	if err != nil {
+		return fmt.Errorf("revoke user: %w", err)
 	}
 	if tag.RowsAffected() == 0 {
 		return pgx.ErrNoRows
 	}
-	return nil
+
+	return tx.Commit(ctx)
 }
