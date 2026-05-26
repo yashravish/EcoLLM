@@ -60,6 +60,13 @@ class ApiClient {
       throw new ApiError(res.status, errBody.message, errBody.type, errBody.trace_id);
     }
 
+    // 204 No Content (and a handful of related codes) have an empty body —
+    // calling res.json() on them throws a SyntaxError that react-query
+    // surfaces as a failed mutation, so callers see "Something went wrong"
+    // even though the request actually succeeded.
+    if (res.status === 204 || res.status === 205 || res.headers.get('content-length') === '0') {
+      return undefined as T;
+    }
     return res.json() as Promise<T>;
   }
 
