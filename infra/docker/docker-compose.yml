@@ -15,7 +15,7 @@ services:
       POSTGRES_USER: ecollm
       POSTGRES_PASSWORD: ecollm_dev
     ports:
-      - "5432:5432"
+      - "5434:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./../../db/migrations:/docker-entrypoint-initdb.d:ro
@@ -30,7 +30,7 @@ services:
     restart: unless-stopped
     command: redis-server --appendonly yes --maxmemory 512mb --maxmemory-policy allkeys-lru
     ports:
-      - "6379:6379"
+      - "6382:6379"
     volumes:
       - redis_data:/data
     healthcheck:
