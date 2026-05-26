@@ -231,7 +231,7 @@ export interface LoginResponse {
 
 export interface MeResponse {
   user: UserProfile;
-  org?: OrgProfile; // absent for OAuth users awaiting org onboarding
+  org: OrgProfile;
 }
 
 // ===== Billing =====

@@ -15,8 +15,6 @@ type RepositoryI interface {
 	FindAPIKeyByPrefix(ctx context.Context, prefix string) (*APIKey, error)
 	TouchAPIKeyLastUsed(ctx context.Context, keyID uuid.UUID) error
 	CreateOrgAndUser(ctx context.Context, org OrgInput, user UserInput, key *APIKey) (*Organization, *User, error)
-	UpsertOAuthUser(ctx context.Context, provider, providerID, email, name string) (*User, error)
-	CreateOrgForUser(ctx context.Context, userID uuid.UUID, org OrgInput) (*Organization, error)
 	UpdateOrg(ctx context.Context, orgID uuid.UUID, name string, qualityThreshold float32, energyBudgetKwh *float32) error
 	ListMembers(ctx context.Context, orgID uuid.UUID) ([]Member, error)
 	InviteMember(ctx context.Context, orgID uuid.UUID, email, passwordHash, name, role string) (*User, error)

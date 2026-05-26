@@ -77,12 +77,6 @@ func (f *fakeRepo) TouchAPIKeyLastUsed(_ context.Context, _ uuid.UUID) error { r
 func (f *fakeRepo) CreateOrgAndUser(_ context.Context, _ OrgInput, _ UserInput, _ *APIKey) (*Organization, *User, error) {
 	return nil, nil, errors.New("not implemented in fake")
 }
-func (f *fakeRepo) UpsertOAuthUser(_ context.Context, _, _, _, _ string) (*User, error) {
-	return nil, errors.New("not implemented in fake")
-}
-func (f *fakeRepo) CreateOrgForUser(_ context.Context, _ uuid.UUID, _ OrgInput) (*Organization, error) {
-	return nil, errors.New("not implemented in fake")
-}
 func (f *fakeRepo) UpdateOrg(_ context.Context, _ uuid.UUID, _ string, _ float32, _ *float32) error {
 	return nil
 }
@@ -153,7 +147,6 @@ func TestService_Login(t *testing.T) {
 		PasswordHash: mustHashPassword(t, "correct-pw"),
 		Role:         "admin",
 		Name:         "Alice",
-		AuthMethod:   "password",
 	}
 	goodOrg := &Organization{ID: orgID, Name: "Acme", Slug: "acme", Plan: "free"}
 
@@ -173,14 +166,13 @@ func TestService_Login(t *testing.T) {
 			wantErr: "invalid credentials",
 		},
 		{
-			name:    "oauth user has empty password hash",
-			email:   "oauth@example.com",
+			name:    "user has empty password hash",
+			email:   "empty@example.com",
 			password: "anything",
 			setup: func(r *fakeRepo) {
 				u := *goodUser
-				u.Email = "oauth@example.com"
+				u.Email = "empty@example.com"
 				u.PasswordHash = ""
-				u.AuthMethod = "oauth"
 				r.userByEmail[u.Email] = &u
 			},
 			wantErr: "invalid credentials",
@@ -328,7 +320,7 @@ func TestService_GetMe(t *testing.T) {
 	orgID := uuid.New()
 	userID := uuid.New()
 
-	user := &User{ID: userID, OrgID: orgID, Email: "alice@example.com", Role: "admin", Name: "Alice", AuthMethod: "password"}
+	user := &User{ID: userID, OrgID: orgID, Email: "alice@example.com", Role: "admin", Name: "Alice"}
 	org := &Organization{ID: orgID, Name: "Acme", Slug: "acme", Plan: "free"}
 
 	tests := []struct {
@@ -345,15 +337,6 @@ func TestService_GetMe(t *testing.T) {
 			orgID:   orgID.String(),
 			setup:   func(*fakeRepo) {},
 			wantErr: true,
-		},
-		{
-			name:   "empty orgID — OAuth user awaiting onboarding",
-			userID: userID.String(),
-			orgID:  "",
-			setup: func(r *fakeRepo) {
-				r.userByID[userID] = user
-			},
-			wantOrg: false,
 		},
 		{
 			name:   "invalid org uuid",
@@ -433,7 +416,6 @@ func TestService_Login_BcryptTruncation(t *testing.T) {
 		PasswordHash: hash,
 		Role:         "admin",
 		Name:         "BcryptTest",
-		AuthMethod:   "password",
 	}
 	org := &Organization{ID: orgID, Name: "Acme", Slug: "acme", Plan: "free"}
 

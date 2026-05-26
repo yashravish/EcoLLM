@@ -125,7 +125,6 @@ func (h *Handler) Logout(c *fiber.Ctx) error {
 	return c.SendStatus(fiber.StatusNoContent)
 }
 
-// OAuth users without an org have org_id="" in their JWT; response omits "org" rather than 401.
 func (h *Handler) Me(c *fiber.Ctx) error {
 	userID, _ := c.Locals("user_id").(string)
 	if userID == "" {
@@ -138,23 +137,20 @@ func (h *Handler) Me(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusInternalServerError).JSON(apierror.ErrInternal)
 	}
 
-	resp := fiber.Map{
+	return c.JSON(fiber.Map{
 		"user": userResponse{
 			ID:    result.User.ID.String(),
 			Email: result.User.Email,
 			Name:  result.User.Name,
 			Role:  result.User.Role,
 		},
-	}
-	if result.Org != nil {
-		resp["org"] = orgResponse{
+		"org": orgResponse{
 			ID:   result.Org.ID.String(),
 			Name: result.Org.Name,
 			Slug: result.Org.Slug,
 			Plan: result.Org.Plan,
-		}
-	}
-	return c.JSON(resp)
+		},
+	})
 }
 
 func (h *Handler) Register(c *fiber.Ctx) error {
@@ -210,38 +206,6 @@ func (h *Handler) DeleteMe(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusInternalServerError).JSON(apierror.ErrInternal)
 	}
 	return c.SendStatus(fiber.StatusNoContent)
-}
-
-// Called by org-less OAuth users after they provide an org name.
-func (h *Handler) RegisterOrg(c *fiber.Ctx) error {
-	userID, _ := c.Locals("user_id").(string)
-	if userID == "" {
-		return c.Status(fiber.StatusUnauthorized).JSON(apierror.ErrUnauthorized)
-	}
-
-	var req struct {
-		OrgName string `json:"org_name"`
-	}
-	if err := c.BodyParser(&req); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(apierror.ErrInvalidRequest)
-	}
-	if req.OrgName == "" {
-		return c.Status(fiber.StatusBadRequest).JSON(apierror.Validation("org_name", "required"))
-	}
-
-	org, err := h.svc.RegisterOrg(c.UserContext(), userID, req.OrgName)
-	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(apierror.ErrInternal)
-	}
-
-	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
-		"org": orgResponse{
-			ID:   org.ID.String(),
-			Name: org.Name,
-			Slug: org.Slug,
-			Plan: org.Plan,
-		},
-	})
 }
 
 func (h *Handler) GetOrg(c *fiber.Ctx) error {

@@ -211,11 +211,10 @@ func (s *Service) Register(ctx context.Context, in RegisterInput) (*RegisterResp
 // GetMeResult carries the full user + org objects returned by GET /me.
 type GetMeResult struct {
 	User *User
-	Org  *Organization // nil when the user has no org (OAuth users awaiting onboarding)
+	Org  *Organization
 }
 
-// GetMe returns the user and (optionally) org for the authenticated caller.
-// orgID may be "" for OAuth users who haven't completed onboarding.
+// GetMe returns the user and org for the authenticated caller.
 func (s *Service) GetMe(ctx context.Context, userID, orgID string) (*GetMeResult, error) {
 	uid, err := uuid.Parse(userID)
 	if err != nil {
@@ -224,9 +223,6 @@ func (s *Service) GetMe(ctx context.Context, userID, orgID string) (*GetMeResult
 	user, err := s.repo.FindUserByID(ctx, uid)
 	if err != nil {
 		return nil, err
-	}
-	if orgID == "" {
-		return &GetMeResult{User: user, Org: nil}, nil
 	}
 	oid, err := uuid.Parse(orgID)
 	if err != nil {
@@ -411,49 +407,6 @@ func (s *Service) RemoveMember(ctx context.Context, orgID, userID string) error 
 	return s.repo.RemoveMember(ctx, oid, uid)
 }
 
-// HandleOAuthCallback runs the account-linking logic after a provider callback.
-// It returns a signed JWT and the next URL ("/overview" or "/onboarding/organisation").
-func (s *Service) HandleOAuthCallback(ctx context.Context, provider, providerID, email, name string) (token, nextURL string, err error) {
-	user, err := s.repo.UpsertOAuthUser(ctx, provider, providerID, email, name)
-	if err != nil {
-		return "", "", fmt.Errorf("upsert oauth user: %w", err)
-	}
-
-	signed, jti, err := s.issueJWT(user)
-	if err != nil {
-		return "", "", err
-	}
-
-	if user.OrgID == uuid.Nil {
-		orgName := user.Name + "'s Workspace"
-		if user.Name == "" {
-			orgName = "My Workspace"
-		}
-		org, err := s.repo.CreateOrgForUser(ctx, user.ID, OrgInput{
-			Name: orgName,
-			Slug: slugify(orgName),
-			Plan: "free",
-		})
-		if err != nil {
-			return "", "", fmt.Errorf("auto-create org: %w", err)
-		}
-		user.OrgID = org.ID
-		signed, jti, err = s.issueJWT(user)
-		if err != nil {
-			return "", "", err
-		}
-	}
-
-	sessionData, _ := json.Marshal(map[string]string{
-		"user_id": user.ID.String(),
-		"org_id":  user.OrgID.String(),
-		"role":    user.Role,
-	})
-	s.redis.Set(ctx, "session:"+jti, sessionData, sessionTTL)
-
-	return signed, "/playground", nil
-}
-
 // DeleteMe deletes the calling user's account and invalidates their session.
 func (s *Service) DeleteMe(ctx context.Context, userID, jti string) error {
 	uid, err := uuid.Parse(userID)
@@ -469,30 +422,12 @@ func (s *Service) DeleteMe(ctx context.Context, userID, jti string) error {
 	return nil
 }
 
-// RegisterOrg creates an org for an org-less OAuth user and assigns it to them.
-func (s *Service) RegisterOrg(ctx context.Context, userID, orgName string) (*Organization, error) {
-	uid, err := uuid.Parse(userID)
-	if err != nil {
-		return nil, errors.New("invalid user id")
-	}
-	return s.repo.CreateOrgForUser(ctx, uid, OrgInput{
-		Name: orgName,
-		Slug: slugify(orgName),
-		Plan: "free",
-	})
-}
-
 // issueJWT signs a JWT for a user and returns the signed string and jti.
-// When OrgID is uuid.Nil (OAuth user awaiting onboarding) the claim is set to "".
 func (s *Service) issueJWT(u *User) (signed, jti string, err error) {
 	jti = uuid.NewString()
-	orgIDStr := ""
-	if u.OrgID != uuid.Nil {
-		orgIDStr = u.OrgID.String()
-	}
 	claims := jwt.MapClaims{
 		"sub":    u.ID.String(),
-		"org_id": orgIDStr,
+		"org_id": u.OrgID.String(),
 		"role":   u.Role,
 		"exp":    time.Now().Add(24 * time.Hour).Unix(),
 		"iat":    time.Now().Unix(),

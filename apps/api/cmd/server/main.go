@@ -164,7 +164,6 @@ func main() {
 
 	// ── Handlers ─────────────────────────────────────────────────────────────
 	authHandler := auth.NewHandler(authService).WithAudit(auditRepo)
-	oauthHandler := auth.NewOAuthHandler(authService, redisClient, cfg)
 	chatHandler := chat.NewHandler(chatService)
 	usageHandler := usage.NewHandler(usageService)
 	feedbackHandler := usage.NewFeedbackHandler(feedbackRepo)
@@ -251,13 +250,6 @@ func main() {
 	authGroup.Post("/logout", middleware.JWTAuth(cfg.JWTSecret, redisClient), authHandler.Logout)
 	authGroup.Get("/me", middleware.JWTAuth(cfg.JWTSecret, redisClient), authHandler.Me)
 	authGroup.Delete("/me", middleware.JWTAuth(cfg.JWTSecret, redisClient), authHandler.DeleteMe)
-	// OAuth — no JWT middleware; the callback issues the JWT itself.
-	authGroup.Get("/github/begin", oauthHandler.BeginGitHub)
-	authGroup.Get("/github/callback", oauthHandler.CallbackGitHub)
-	authGroup.Get("/google/begin", oauthHandler.BeginGoogle)
-	authGroup.Get("/google/callback", oauthHandler.CallbackGoogle)
-	// Org onboarding for OAuth users with no org yet.
-	authGroup.Post("/register/org", middleware.JWTAuth(cfg.JWTSecret, redisClient), authHandler.RegisterOrg)
 
 	// ── Organization Routes ───────────────────────────────────────────────────
 	orgGroup := app.Group("/organizations",

@@ -47,14 +47,6 @@ type Config struct {
 	EnableCarbonTracking     bool
 	EnableCache              bool
 	EnableFallback           bool
-
-	// OAuth
-	GitHubClientID     string
-	GitHubClientSecret string
-	GoogleClientID     string
-	GoogleClientSecret string
-	APIBaseURL         string // backend origin used to build OAuth redirect URLs
-	FrontendURL        string // frontend origin for post-auth redirects
 }
 
 // Load reads configuration from environment variables, applying defaults for
@@ -79,13 +71,6 @@ func Load() (*Config, error) {
 
 		GridAPIKey:   getEnv("GRID_API_KEY", ""),
 		OTelEndpoint: getEnv("OTEL_EXPORTER_OTLP_ENDPOINT", ""),
-
-		GitHubClientID:     getEnv("GITHUB_CLIENT_ID", ""),
-		GitHubClientSecret: getEnv("GITHUB_CLIENT_SECRET", ""),
-		GoogleClientID:     getEnv("GOOGLE_CLIENT_ID", ""),
-		GoogleClientSecret: getEnv("GOOGLE_CLIENT_SECRET", ""),
-		APIBaseURL:         getEnv("API_BASE_URL", "http://localhost:8080"),
-		FrontendURL:        getEnv("FRONTEND_URL", "http://localhost:3000"),
 
 		EnablePromptOptimization: getEnvBool("ENABLE_PROMPT_OPTIMIZATION", true),
 		EnableCarbonTracking:     getEnvBool("ENABLE_CARBON_TRACKING", true),

@@ -1,7 +1,7 @@
 'use client';
 
-import { Suspense, useState } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -11,12 +11,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useRegister } from '@/lib/hooks/use-auth';
 import { ApiError } from '@/lib/api';
-import {
-  MobileLogo,
-  OAuthSection,
-  OAuthErrorBanner,
-  ServerErrorBanner,
-} from '@/components/auth/oauth-section';
+import { MobileLogo, ServerErrorBanner } from '@/components/auth/shared';
 
 const schema = z.object({
   name:             z.string().min(2, 'Name must be at least 2 characters'),
@@ -30,14 +25,10 @@ const schema = z.object({
 
 type FormValues = z.infer<typeof schema>;
 
-function RegisterInner() {
-  const router        = useRouter();
-  const searchParams  = useSearchParams();
-  const register      = useRegister();
-  const [serverError, setServerError]   = useState<string | null>(null);
-  const [oauthLoading, setOauthLoading] = useState<'github' | 'google' | null>(null);
-
-  const oauthError = searchParams.get('error');
+export default function RegisterPage() {
+  const router   = useRouter();
+  const register = useRegister();
+  const [serverError, setServerError] = useState<string | null>(null);
 
   const {
     register: field,
@@ -65,36 +56,10 @@ function RegisterInner() {
 
   return (
     <div>
-
-      {/* Mobile-only logo */}
       <MobileLogo className="mb-3" />
 
       <h1 className="mb-0.5 text-2xl font-bold text-eco-50 text-center">Create account</h1>
       <p className="mb-3 text-sm text-eco-300 text-center">Set up your workspace in seconds</p>
-
-      {/* OAuth error banner */}
-      {oauthError && <OAuthErrorBanner errorKey={oauthError} className="mb-3" />}
-
-      {/* Social auth */}
-      <OAuthSection
-        oauthLoading={oauthLoading}
-        onGitHub={() => {
-          setOauthLoading('github');
-          window.location.href = `${process.env.NEXT_PUBLIC_API_URL}/auth/github/begin`;
-        }}
-        onGoogle={() => {
-          setOauthLoading('google');
-          window.location.href = `${process.env.NEXT_PUBLIC_API_URL}/auth/google/begin`;
-        }}
-        className="space-y-1.5 mb-2"
-      />
-
-      {/* Divider */}
-      <div className="relative mb-2 flex items-center gap-3">
-        <div className="h-px flex-1 bg-eco-700/50" />
-        <span className="text-xs text-eco-600">or</span>
-        <div className="h-px flex-1 bg-eco-700/50" />
-      </div>
 
       <form onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-2">
         <Input
@@ -161,13 +126,5 @@ function RegisterInner() {
         </Link>
       </p>
     </div>
-  );
-}
-
-export default function RegisterPage() {
-  return (
-    <Suspense fallback={null}>
-      <RegisterInner />
-    </Suspense>
   );
 }

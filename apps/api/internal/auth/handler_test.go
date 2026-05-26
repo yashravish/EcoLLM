@@ -57,7 +57,6 @@ func TestHandler_Login(t *testing.T) {
 		PasswordHash: mustHashPassword(t, "secret123"),
 		Role:         "admin",
 		Name:         "Alice",
-		AuthMethod:   "password",
 	}
 	goodOrg := &Organization{ID: orgID, Name: "Acme", Slug: "acme", Plan: "free"}
 
@@ -242,7 +241,7 @@ func TestHandler_Me(t *testing.T) {
 	orgID := uuid.New()
 	userID := uuid.New()
 
-	user := &User{ID: userID, OrgID: orgID, Email: "alice@example.com", Role: "admin", Name: "Alice", AuthMethod: "password"}
+	user := &User{ID: userID, OrgID: orgID, Email: "alice@example.com", Role: "admin", Name: "Alice"}
 	org := &Organization{ID: orgID, Name: "Acme", Slug: "acme", Plan: "free"}
 
 	t.Run("no user_id in context returns 401", func(t *testing.T) {
@@ -293,38 +292,4 @@ func TestHandler_Me(t *testing.T) {
 		}
 	})
 
-	t.Run("oauth user without org returns 200 with no org key", func(t *testing.T) {
-		repo := newFakeRepo()
-		oauthUser := *user
-		oauthUser.OrgID = uuid.Nil
-		oauthUser.AuthMethod = "oauth"
-		repo.userByID[userID] = &oauthUser
-		app, _ := newHandlerApp(t, repo)
-
-		req := httptest.NewRequest("GET", "/me", nil)
-		req.Header.Set("X-Test-UserID", userID.String())
-		// No X-Test-OrgID → simulates JWT with empty org_id
-
-		resp, err := app.Test(req, 5000)
-		if err != nil {
-			t.Fatalf("app.Test(): %v", err)
-		}
-		defer resp.Body.Close()
-
-		body, _ := io.ReadAll(resp.Body)
-		if resp.StatusCode != 200 {
-			t.Errorf("status = %d, want 200; body: %s", resp.StatusCode, body)
-		}
-
-		var result map[string]json.RawMessage
-		if err := json.Unmarshal(body, &result); err != nil {
-			t.Fatalf("unmarshal /me response: %v", err)
-		}
-		if _, ok := result["user"]; !ok {
-			t.Error("/me response missing 'user' key")
-		}
-		if _, ok := result["org"]; ok {
-			t.Error("/me response should not contain 'org' key for org-less user")
-		}
-	})
 }
