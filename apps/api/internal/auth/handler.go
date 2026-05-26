@@ -1,12 +1,14 @@
 package auth
 
 import (
+	"errors"
 	"strings"
 
 	"github.com/ecollm/api/internal/audit"
 	"github.com/ecollm/api/pkg/apierror"
 	"github.com/gofiber/fiber/v2"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 )
 
 const (
@@ -162,11 +164,18 @@ func (h *Handler) Register(c *fiber.Ctx) error {
 	if err := c.BodyParser(&req); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(apierror.ErrInvalidRequest)
 	}
+	req.Email = strings.ToLower(strings.TrimSpace(req.Email))
 	if req.Email == "" || req.Password == "" {
 		return c.Status(fiber.StatusBadRequest).JSON(apierror.Validation("email/password", "required"))
 	}
+	if len(req.Email) > maxEmailLen || !strings.Contains(req.Email, "@") {
+		return c.Status(fiber.StatusBadRequest).JSON(apierror.Validation("email", "invalid"))
+	}
 	if len(req.Password) < 8 {
 		return c.Status(fiber.StatusBadRequest).JSON(apierror.Validation("password", "must be at least 8 characters"))
+	}
+	if len(req.Password) > maxPasswordLen {
+		return c.Status(fiber.StatusBadRequest).JSON(apierror.Validation("password", "too long"))
 	}
 
 	resp, err := h.svc.Register(c.UserContext(), RegisterInput{
@@ -175,6 +184,12 @@ func (h *Handler) Register(c *fiber.Ctx) error {
 		Name:     req.Name,
 	})
 	if err != nil {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+			// 23505 = unique_violation. Most commonly the email column;
+			// the slug column is randomized so collisions are vanishingly rare.
+			return c.Status(fiber.StatusConflict).JSON(apierror.Validation("email", "already registered"))
+		}
 		return c.Status(fiber.StatusInternalServerError).JSON(apierror.ErrInternal)
 	}
 

@@ -179,8 +179,11 @@ func (s *Service) Register(ctx context.Context, in RegisterInput) (*RegisterResp
 	if in.Name == "" {
 		orgName = "My Workspace"
 	}
+	// Append a short random suffix so the slug is globally unique even when
+	// two users share the same name (slug column has a UNIQUE constraint).
+	slug := slugify(orgName) + "-" + uuid.NewString()[:8]
 	org, user, err := s.repo.CreateOrgAndUser(ctx,
-		OrgInput{Name: orgName, Slug: slugify(orgName), Plan: "free"},
+		OrgInput{Name: orgName, Slug: slug, Plan: "free"},
 		UserInput{Email: in.Email, PasswordHash: string(pwHash), Role: "admin", Name: in.Name},
 		apiKey,
 	)
